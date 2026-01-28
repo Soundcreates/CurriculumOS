@@ -3,6 +3,8 @@ import SectionDivider from "../components/SectionDivider";
 import Hero from "../components/Hero";
 import Card from "../components/Card";
 import Navigation from "../components/Navigation";
+import gsap from "gsap";
+import { useEffect, useRef } from "react";
 
 function Landing() {
   const features = [
@@ -25,12 +27,30 @@ function Landing() {
         "Connect disparate concepts into a unified mental model automatically.",
     },
   ];
+
+  //refs section
+  const heroRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    gsap.fromTo(
+      heroRef.current,
+      {
+        opacity: 0,
+        x: -50,
+      },
+      { opacity: 1, x: 0, duration: 1, ease: "power2.out", delay: 0.5 },
+    );
+
+    return (() => {
+        gsap.killTweensOf(heroRef.current);
+    })
+  }, []);
+
   return (
     <Layout>
       <Navigation />
 
       {/* Section: Hero */}
-      <section id="hero-section">
+      <section ref={heroRef}>
         <Hero />
       </section>
 

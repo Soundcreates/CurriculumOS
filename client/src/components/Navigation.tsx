@@ -1,8 +1,29 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
+import gsap from "gsap";
 
 const Navigation: React.FC = () => {
+  const navRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    gsap.fromTo(
+      navRef.current,
+      {
+        y: -50,
+        opacity: 0,
+      },
+      {
+        y: 0,
+        opacity: 1,
+        duration: 1,
+        ease: "power2.out",
+        delay: 0.2,
+      }
+    )
+    return (() => {
+      gsap.killTweensOf(navRef.current);
+    })
+  }, [])
   return (
-    <nav className="fixed top-0 left-0 w-full z-50 px-8 py-6 flex justify-between items-center mix-blend-difference text-white">
+    <nav ref={navRef} className="fixed top-0 left-0 w-full z-50 px-8 py-6 flex justify-between items-center mix-blend-difference text-white">
       <div className="text-xl font-serif font-medium tracking-wide">
         CurriculumOS
       </div>

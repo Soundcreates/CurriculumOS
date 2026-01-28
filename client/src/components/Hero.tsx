@@ -1,12 +1,13 @@
 import React from "react";
+import LightRays from "./LightRays";
 
 const Hero: React.FC = () => {
   return (
     <section className="min-h-screen flex flex-col justify-center px-8 pt-40 pb-20 md:pt-60 relative">
-      <div className="max-w-6xl mx-auto w-full">
-        <h2 className="text-secondary font-sans text-xs md:text-sm tracking-[0.2em] uppercase mb-6 animate-fade-in">
-          System v1.0
-        </h2>
+      <div className="absolute inset-0 z-0">
+        <LightRays />
+      </div>
+      <div className="max-w-6xl mx-auto w-full relative z-10">
         <h1 className="font-serif text-5xl md:text-8xl lg:text-9xl leading-[0.9] text-text-primary mb-12 animate-fade-up delay-200">
           Raw knowledge,
           <br />
