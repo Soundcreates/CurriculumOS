@@ -4,8 +4,9 @@ import Hero from "../components/Hero";
 import Card from "../components/Card";
 import Navigation from "../components/Navigation";
 import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useEffect, useRef } from "react";
-
+gsap.registerPlugin(ScrollTrigger);
 function Landing() {
   const features = [
     {
@@ -30,7 +31,74 @@ function Landing() {
 
   //refs section
   const heroRef = useRef<HTMLElement>(null);
+  const featuresRef = useRef<HTMLDivElement>(null);
+  const modernMindRef = useRef<HTMLDivElement>(null);
+  const modernMindTextRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
+    gsap.fromTo(
+      featuresRef.current,
+      {
+        opacity: 0,
+        y: -50,
+      
+      },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 1,
+        ease: "power2.out",
+        delay: 0.2,
+        scrollTrigger: {
+          trigger: featuresRef.current,
+          start: "top 90%",
+          toggleActions: "play none none none",
+        },
+      },
+    );
+    gsap.fromTo(
+      modernMindRef.current,
+      {
+        opacity: 0,
+        x: -50,
+        y:-50
+      },
+      {
+        opacity: 1,
+        x: 0,
+        y: 0,
+        duration: 1,
+        ease: "power2.out",
+        delay: 0.2,
+        scrollTrigger: {
+          trigger: modernMindRef.current,
+          start: "top 90%",
+          toggleActions: "play none play none",
+        },
+      },
+    );
+
+    gsap.fromTo(
+      modernMindTextRef.current,
+      {
+        opacity: 0,
+        x: 50,
+        y:-50
+      },
+      {
+        opacity: 1,
+        x: 0,
+        y: 0,
+        duration: 1,
+        ease: "power2.out",
+        delay: 0.4,
+        scrollTrigger: {
+          trigger: modernMindTextRef.current,
+          start: "top 90%",
+          toggleActions: "play none play none",
+        },
+      },
+    )
     gsap.fromTo(
       heroRef.current,
       {
@@ -40,9 +108,9 @@ function Landing() {
       { opacity: 1, x: 0, duration: 1, ease: "power2.out", delay: 0.5 },
     );
 
-    return (() => {
-        gsap.killTweensOf(heroRef.current);
-    })
+    return () => {
+      gsap.killTweensOf(heroRef.current);
+    };
   }, []);
 
   return (
@@ -55,7 +123,10 @@ function Landing() {
       </section>
 
       <div className="max-w-6xl mx-auto px-8 pb-32">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 w-full">
+        <div
+          className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 w-full"
+          ref={featuresRef}
+        >
           {features.map((feature, index) => (
             <div
               key={index}
@@ -70,13 +141,13 @@ function Landing() {
         <SectionDivider />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-16 md:gap-32 items-center">
-          <div>
+          <div ref={modernMindRef}>
             <h2 className="text-4xl md:text-5xl text-text-primary mb-8">
               The anti-feed for <br />
               the modern mind.
             </h2>
           </div>
-          <div>
+          <div ref={modernMindTextRef}>
             <p className="playfair-font text-lg text-text-secondary leading-relaxed mb-6">
               Most platforms are designed to keep you scrolling. CurriculumOS is
               designed to make you stop.
@@ -107,7 +178,7 @@ function Landing() {
               Twitter
             </a>
             <a
-              href="#"
+              href="https://github.com/Soundcreates/CurriculumOS"
               className="font-sans text-xs text-text-secondary uppercase tracking-widest hover:text-white transition-colors"
             >
               Github

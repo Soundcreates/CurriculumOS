@@ -20,7 +20,7 @@ const Hero: React.FC = () => {
             paths.
           </p>
           <button className="group relative px-8 py-4 bg-transparent border border-accent/30 text-text-primary font-sans text-sm tracking-widest uppercase hover:bg-accent/10 transition-colors duration-500">
-            <span className="relative z-10">Initialize Path</span>
+            <span className="relative z-10">Get Started</span>
           </button>
         </div>
       </div>

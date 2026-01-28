@@ -24,7 +24,7 @@ const Navigation: React.FC = () => {
   }, [])
   return (
     <nav ref={navRef} className="fixed top-0 left-0 w-full z-50 px-8 py-6 flex justify-between items-center mix-blend-difference text-white">
-      <div className="text-xl font-serif font-medium tracking-wide">
+      <div className=" cursor-pointer text-xl font-serif font-medium tracking-wide">
         CurriculumOS
       </div>
       <div className="hidden md:flex gap-12 font-sans text-sm tracking-widest uppercase opacity-80">
@@ -32,19 +32,19 @@ const Navigation: React.FC = () => {
           href="#"
           className="hover:opacity-100 transition-opacity duration-300"
         >
-          Manifesto
+          About
         </a>
         <a
           href="#"
           className="hover:opacity-100 transition-opacity duration-300"
         >
-          Engine
+          Feedback
         </a>
         <a
           href="#"
           className="hover:opacity-100 transition-opacity duration-300"
         >
-          Access
+          Login
         </a>
       </div>
       <div className="md:hidden">
