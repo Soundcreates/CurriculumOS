@@ -3,6 +3,7 @@ package main
 import (
 	"curriculumOs/config"
 	"curriculumOs/db"
+	"curriculumOs/db/models"
 	"curriculumOs/internal/handlers"
 	"curriculumOs/internal/routes"
 	"fmt"
@@ -24,6 +25,8 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to initialize database:", err)
 	}
+
+	db.AutoMigrate(models.User{})
 	handler := handlers.NewHandler(db, cfg)
 
 	mux := routes.RegisterRoutes(handler)

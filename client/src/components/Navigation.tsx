@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import gsap from "gsap";
 
 const Navigation: React.FC = () => {
@@ -16,36 +17,33 @@ const Navigation: React.FC = () => {
         duration: 1,
         ease: "power2.out",
         delay: 0.2,
-      }
-    )
-    return (() => {
+      },
+    );
+    return () => {
       gsap.killTweensOf(navRef.current);
-    })
-  }, [])
+    };
+  }, []);
   return (
-    <nav ref={navRef} className="fixed top-0 left-0 w-full z-50 px-8 py-6 flex justify-between items-center mix-blend-difference text-white">
+    <nav
+      ref={navRef}
+      className="fixed top-0 left-0 w-full z-50 px-8 py-6 flex justify-between items-center mix-blend-difference text-white"
+    >
       <div className=" cursor-pointer text-xl font-serif font-medium tracking-wide">
         CurriculumOS
       </div>
       <div className="hidden md:flex gap-12 font-sans text-sm tracking-widest uppercase opacity-80">
-        <a
-          href="#"
+        <Link
+          to="/dashboard"
           className="hover:opacity-100 transition-opacity duration-300"
         >
-          About
-        </a>
-        <a
-          href="#"
-          className="hover:opacity-100 transition-opacity duration-300"
-        >
-          Feedback
-        </a>
-        <a
-          href="#"
+          Dashboard
+        </Link>
+        <Link
+          to="/login"
           className="hover:opacity-100 transition-opacity duration-300"
         >
           Login
-        </a>
+        </Link>
       </div>
       <div className="md:hidden">
         {/* Mobile Menu Icon Placeholder */}
