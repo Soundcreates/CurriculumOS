@@ -33,6 +33,7 @@ func main() {
 
 	allowedOrigins := []string{
 		"http://localhost:5173",
+		cfg.CLIENT_URL,
 	}
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins: allowedOrigins,
@@ -40,13 +41,15 @@ func main() {
 			"Authorization",
 			"Content-Type",
 		},
-		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowCredentials: true,
 	})
-	
-	
+
 	handler2 := corsHandler.Handler(mux)
 	log.Printf("Starting server on port %s", cfg.PORT)
-	err = http.ListenAndServe(cfg.PORT, handler2)
+	addr := fmt.Sprintf(":%s", cfg.PORT)
+	
+	err = http.ListenAndServe(addr, handler2)
 	if err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}

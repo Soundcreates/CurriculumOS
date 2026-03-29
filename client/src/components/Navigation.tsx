@@ -5,8 +5,10 @@ import gsap from "gsap";
 const Navigation: React.FC = () => {
   const navRef = useRef<HTMLElement>(null);
   useEffect(() => {
+    const navElement = navRef.current;
+
     gsap.fromTo(
-      navRef.current,
+      navElement,
       {
         y: -50,
         opacity: 0,
@@ -20,7 +22,7 @@ const Navigation: React.FC = () => {
       },
     );
     return () => {
-      gsap.killTweensOf(navRef.current);
+      gsap.killTweensOf(navElement);
     };
   }, []);
   return (
@@ -37,6 +39,12 @@ const Navigation: React.FC = () => {
           className="hover:opacity-100 transition-opacity duration-300"
         >
           Dashboard
+        </Link>
+        <Link
+          to="/profile"
+          className="hover:opacity-100 transition-opacity duration-300"
+        >
+          Profile
         </Link>
         <Link
           to="/login"

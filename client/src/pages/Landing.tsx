@@ -36,6 +36,8 @@ function Landing() {
   const modernMindTextRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const heroElement = heroRef.current;
+
     gsap.fromTo(
       featuresRef.current,
       {
@@ -100,7 +102,7 @@ function Landing() {
       },
     )
     gsap.fromTo(
-      heroRef.current,
+      heroElement,
       {
         opacity: 0,
         x: -50,
@@ -109,7 +111,7 @@ function Landing() {
     );
 
     return () => {
-      gsap.killTweensOf(heroRef.current);
+      gsap.killTweensOf(heroElement);
     };
   }, []);
 

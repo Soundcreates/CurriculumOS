@@ -1,0 +1,40 @@
+# LLM & RAG Framework
+langchain
+langchain-openai
+openai
+
+# Vector Embeddings
+sentence-transformers
+numpy
+
+# Vector Database
+chromadb
+
+# PDF Processing
+PyPDF2
+pdfplumber
+
+# Document Processing
+python-docx
+python-pptx
+
+# YouTube Content Extraction
+youtube-transcript-api
+pytube
+
+# Web & HTTP
+requests
+beautifulsoup4
+
+# Text Processing & NLP
+nltk
+spacy
+
+# Data Validation
+pydantic
+
+# Environment & Configuration
+python-dotenv
+
+# Utilities
+python-dateutil

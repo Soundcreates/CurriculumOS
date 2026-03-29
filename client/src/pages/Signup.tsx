@@ -1,14 +1,63 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Layout from "../components/Layout";
 import Navigation from "../components/Navigation";
 import OAuthButton from "../components/OAuthButton";
 import gsap from "gsap";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { register, startOAuthLogin } from "../apis/authApi";
 
 const Signup: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
+  const navigate = useNavigate();
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const startOAuth = (provider: "google" | "twitter") => {
+    startOAuthLogin(provider);
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setErrorMessage("");
+    setStatusMessage("");
+    setIsSubmitting(true);
+
+    const [firstName, ...rest] = fullName.trim().split(/\s+/);
+    const lastName = rest.join(" ");
+
+    try {
+      const response = await register({
+        firstName: firstName ?? "",
+        lastName,
+        email,
+        password,
+      });
+
+      const data = response.data as {
+        success?: boolean;
+        token?: string;
+        user?: unknown;
+        message?: string;
+      };
+
+      if (data?.token || data?.user || data?.success) {
+        navigate("/dashboard");
+        return;
+      }
+
+      setStatusMessage(data?.message ?? "Signup request completed.");
+    } catch {
+      setErrorMessage("Signup failed. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
@@ -54,15 +103,22 @@ const Signup: React.FC = () => {
           </div>
 
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 p-8 rounded-2xl shadow-2xl">
-            <form ref={formRef} className="flex flex-col gap-5">
+            <form
+              ref={formRef}
+              className="flex flex-col gap-5"
+              onSubmit={handleSubmit}
+            >
               <div className="flex flex-col gap-2">
                 <label className="text-xs uppercase tracking-widest text-text-secondary">
                   Full Name
                 </label>
                 <input
                   type="text"
+                  value={fullName}
+                  onChange={(event) => setFullName(event.target.value)}
                   className="bg-transparent border-b border-white/20 py-2 text-white focus:outline-none focus:border-white transition-colors placeholder:text-white/20 font-sans"
                   placeholder="John Doe"
+                  required
                 />
               </div>
 
@@ -72,8 +128,11 @@ const Signup: React.FC = () => {
                 </label>
                 <input
                   type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
                   className="bg-transparent border-b border-white/20 py-2 text-white focus:outline-none focus:border-white transition-colors placeholder:text-white/20 font-sans"
                   placeholder="scholar@curriculum.os"
+                  required
                 />
               </div>
 
@@ -83,13 +142,28 @@ const Signup: React.FC = () => {
                 </label>
                 <input
                   type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
                   className="bg-transparent border-b border-white/20 py-2 text-white focus:outline-none focus:border-white transition-colors placeholder:text-white/20 font-sans"
                   placeholder="Create a strong password"
+                  required
                 />
               </div>
 
-              <button className="mt-4 bg-white text-black py-3 rounded-lg font-serif text-lg hover:bg-white/90 transition-colors">
-                Create Account
+              {errorMessage ? (
+                <p className="text-sm text-red-300">{errorMessage}</p>
+              ) : null}
+
+              {statusMessage ? (
+                <p className="text-sm text-text-secondary">{statusMessage}</p>
+              ) : null}
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="mt-4 bg-white text-black py-3 rounded-lg font-serif text-lg hover:bg-white/90 transition-colors disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isSubmitting ? "Creating..." : "Create Account"}
               </button>
 
               <div className="relative my-4">
@@ -104,8 +178,14 @@ const Signup: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <OAuthButton provider="google" />
-                <OAuthButton provider="twitter" />
+                <OAuthButton
+                  provider="google"
+                  onClick={() => startOAuth("google")}
+                />
+                <OAuthButton
+                  provider="twitter"
+                  onClick={() => startOAuth("twitter")}
+                />
               </div>
             </form>
           </div>
