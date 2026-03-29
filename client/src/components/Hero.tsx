@@ -1,7 +1,10 @@
 import React from "react";
 import LightRays from "./LightRays";
+import { useNavigate } from "react-router-dom";
 
 const Hero: React.FC = () => {
+  const navigate = useNavigate();
+
   return (
     <section className="min-h-screen flex flex-col justify-center px-8 pt-40 pb-20 md:pt-60 relative">
       <div className="absolute inset-0 z-0">
@@ -19,7 +22,7 @@ const Hero: React.FC = () => {
             compiles the noise of the internet into elegant, daily learning
             paths.
           </p>
-          <button className="group relative px-8 py-4 bg-transparent border border-accent/30 text-text-primary font-sans text-sm tracking-widest uppercase hover:bg-accent/10 transition-colors duration-500">
+          <button className="group relative px-8 py-4 bg-transparent border border-accent/30 text-text-primary font-sans text-sm tracking-widest uppercase hover:bg-accent/10 transition-colors duration-500 cursor-pointer" onClick={() => navigate("/login")}>
             <span className="relative z-10">Get Started</span>
           </button>
         </div>

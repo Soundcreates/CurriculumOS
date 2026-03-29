@@ -1,8 +1,11 @@
 import React, { useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link,useNavigate } from "react-router-dom";
 import gsap from "gsap";
 
+
 const Navigation: React.FC = () => {
+  const navigate = useNavigate();
+
   const navRef = useRef<HTMLElement>(null);
   useEffect(() => {
     const navElement = navRef.current;
@@ -30,7 +33,7 @@ const Navigation: React.FC = () => {
       ref={navRef}
       className="fixed top-0 left-0 w-full z-50 px-8 py-6 flex justify-between items-center mix-blend-difference text-white"
     >
-      <div className=" cursor-pointer text-xl font-serif font-medium tracking-wide">
+      <div onClick = {() => navigate('/')} className=" cursor-pointer text-xl font-serif font-medium tracking-wide">
         CurriculumOS
       </div>
       <div className="hidden md:flex gap-12 font-sans text-sm tracking-widest uppercase opacity-80">
