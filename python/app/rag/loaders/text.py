@@ -1,5 +1,5 @@
 from fastapi import UploadFile
-from langchain.schema import Document
+from langchain_core.documents import Document
 
 def load_text(text:str):
     if not text or not text.strip():

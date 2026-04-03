@@ -1,7 +1,7 @@
-from youtube_transcript_api import YoutubeTranscriptApi
-from youtube_transcript_api_errors import TranscriptsDisabled, NoTranscriptFound
-from pytube import Playlist, Youtube
-from langchain.schema import Document
+from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
+from pytube import Playlist, YouTube
+from langchain_core.documents import Document
 
 def extract_video_id(url: str) -> str:
     if "v=" in url:
@@ -15,9 +15,10 @@ def extract_video_id(url: str) -> str:
 def load_youtube_video(url: str) -> list[Document]:
     video_id = extract_video_id(url)
     try:
-        transcript = YoutubeTranscriptApi.get_transcript(video_id, languages=['en'])
+        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=["en"])
     except (TranscriptsDisabled, NoTranscriptFound):
         print(f"No transcript available for video: {url}")
+        return []
     except Exception as e:
         print(f"Error fetching transcript: {e}")
         return []
@@ -25,14 +26,14 @@ def load_youtube_video(url: str) -> list[Document]:
     documents = []
 
     try:
-        yt = Youtube(url)
-        title=yt.title
-    except:
-        title="Unknown Title"
+        yt = YouTube(url)
+        title = yt.title
+    except Exception:
+        title = "Unknown Title"
 
-    for i , chunk in enumerate(transcript):
-        text = chunk['text']
-        start_time=chunk['start']
+    for i, chunk in enumerate(transcript):
+        text = chunk["text"]
+        start_time = chunk["start"]
 
         documents.append(
             Document(
@@ -62,7 +63,7 @@ def load_youtube_playlist(url : str):
             print(f"Processing video {idx+1}/{len(playlist.video_urls)}: {vid_url}")
             vid_docs = load_youtube_video(vid_url)
 
-            for docs in vid_docs:
+            for doc in vid_docs:
                 doc.metadata["playlist"] = True
                 doc.metadata["video_index"] = idx
 

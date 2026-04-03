@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes.upload import upload_router
-from routes.query import query_router
+from app.routes.upload import upload_router
+from app.routes.query import query_router
 
 app = FastAPI()
 
