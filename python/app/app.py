@@ -2,8 +2,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes.upload import upload_router
 from app.routes.query import query_router
+from dotenv import load_dotenv
 
 app = FastAPI()
+load_dotenv()
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,4 +24,3 @@ app.include_router(query_router, prefix="/query")
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
-

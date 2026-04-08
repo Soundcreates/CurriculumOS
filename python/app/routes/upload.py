@@ -2,7 +2,8 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.rag.loaders.youtube import load_youtube_video, load_youtube_playlist
 from app.rag.loaders.text import load_text, load_text_file
 from app.rag.loaders.pdf import load_pdf
-
+from app.rag.pipeline import pipeline
+from app.rag.processors.cleaner import clean_documents
 
 upload_router = APIRouter()
 
@@ -22,7 +23,7 @@ async def source_upload(
     processed_types = []
 
     if text and text.strip():
-        all_input_normalized.extend(load_text(text))
+        all_input_normalized.extend(clean_documents(load_text(text)))
         processed_types.append("text")
 
     if url and url.strip():
@@ -53,6 +54,11 @@ async def source_upload(
                 status_code=400,
                 detail="Unsupported file type. Use .pdf, .txt, or .md",
             )
+    pipeline_result = pipeline(all_input_normalized)
+    if(pipeline_result["success"] == False) :
+      return {
+        "message": "NIGGA"
+      }
 
     return {
         "message": "Sources processed successfully",

@@ -2,6 +2,7 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
 from pytube import Playlist, YouTube
 from langchain_core.documents import Document
+from typing import list
 
 def extract_video_id(url: str) -> str:
     if "v=" in url:
@@ -10,7 +11,7 @@ def extract_video_id(url: str) -> str:
         return url.split("youtu.be/")[-1].split("?")[0]
     else:
         raise ValueError("Invalid YouTube URL format")
-    
+
 
 def load_youtube_video(url: str) -> list[Document]:
     video_id = extract_video_id(url)
@@ -52,7 +53,7 @@ def load_youtube_video(url: str) -> list[Document]:
 
     return documents
 
-def load_youtube_playlist(url : str):
+def load_youtube_playlist(url : str) -> List[Document]:
 
     playlist= Playlist(url)
 
