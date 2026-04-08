@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from "react";
 import gsap from "gsap";
 import { X, Upload, Youtube, FileText, Link } from "lucide-react";
+import { createPath } from "../apis/pathApi";
 
 interface AddCourseModalProps {
   onClose: () => void;
@@ -11,7 +12,13 @@ type TabType = "document" | "youtube" | "text";
 const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose }) => {
   const overlayRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<TabType>("document");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [textValue, setTextValue] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   useEffect(() => {
     const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
@@ -44,6 +51,48 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose }) => {
       y: 10,
       duration: 0.2,
     }).to(overlayRef.current, { opacity: 0, duration: 0.2 }, "-=0.1");
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+    setSelectedFiles(Array.from(files));
+    setSubmitError("");
+  };
+
+  const handleSubmit = async () => {
+    const payload = new FormData();
+
+    if (activeTab === "document") {
+      selectedFiles.forEach((file) => {
+        payload.append("file", file);
+      });
+    }
+
+    if (activeTab === "youtube" && youtubeUrl.trim()) {
+      payload.append("url", youtubeUrl.trim());
+    }
+
+    if (activeTab === "text" && textValue.trim()) {
+      payload.append("text", textValue.trim());
+    }
+
+    if (![...payload.keys()].length) {
+      setSubmitError("Please add at least one source.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError("");
+
+    try {
+      await createPath(payload);
+      handleClose();
+    } catch {
+      setSubmitError("Failed to create path.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -111,7 +160,10 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose }) => {
 
           <div className="min-h-[250px]">
             {activeTab === "document" && (
-              <div className="border-2 border-dashed border-white/10 rounded-xl p-10 flex flex-col items-center justify-center text-center hover:border-white/20 transition-colors cursor-pointer group bg-white/5">
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-white/10 rounded-xl p-10 flex flex-col items-center justify-center text-center hover:border-white/20 transition-colors cursor-pointer group bg-white/5"
+              >
                 <div className="p-4 rounded-full bg-white/5 mb-4 group-hover:scale-110 transition-transform duration-300">
                   <Upload size={32} className="text-white opacity-80" />
                 </div>
@@ -122,6 +174,20 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose }) => {
                   Drag and drop your syllabus or reading material here to
                   generate a curriculum.
                 </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.txt,.md"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                {selectedFiles.length > 0 && (
+                  <p className="text-xs text-text-secondary mt-3">
+                    {selectedFiles.length} file
+                    {selectedFiles.length > 1 ? "s" : ""} selected
+                  </p>
+                )}
               </div>
             )}
 
@@ -135,6 +201,11 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose }) => {
                     <input
                       type="text"
                       placeholder="https://youtube.com/playlist?list=..."
+                      value={youtubeUrl}
+                      onChange={(e) => {
+                        setYoutubeUrl(e.target.value);
+                        setSubmitError("");
+                      }}
                       className="w-full bg-transparent border-b border-white/20 py-3 pl-10 text-white focus:outline-none focus:border-white transition-colors placeholder:text-white/20 font-sans"
                     />
                     <Link
@@ -161,12 +232,20 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose }) => {
                   </label>
                   <textarea
                     placeholder="e.g., 'Learn the basics of Quantum Computing over 2 weeks...'"
+                    value={textValue}
+                    onChange={(e) => {
+                      setTextValue(e.target.value);
+                      setSubmitError("");
+                    }}
                     className="w-full h-32 bg-transparent border border-white/20 rounded-lg p-4 text-white focus:outline-none focus:border-white transition-colors placeholder:text-white/20 font-sans resize-none"
                   />
                 </div>
               </div>
             )}
           </div>
+          {submitError && (
+            <p className="text-sm text-red-400 mt-4">{submitError}</p>
+          )}
         </div>
 
         {/* Footer */}
@@ -177,8 +256,12 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose }) => {
           >
             Cancel
           </button>
-          <button className="px-6 py-2 bg-white text-black rounded-lg hover:bg-white/90 transition-all font-serif font-medium">
-            Generate Plan
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className="px-6 py-2 bg-white text-black rounded-lg hover:bg-white/90 transition-all font-serif font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? "Generating..." : "Generate Plan"}
           </button>
         </div>
       </div>

@@ -1,5 +1,5 @@
 from app.rag.embeddings.vector_db import vector_db
-from app.rag.chunking import chunk_documents
+from app.rag.processors.chunker import chunk_documents
 
 def pipeline(documents):
 

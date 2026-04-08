@@ -1,6 +1,6 @@
 from langchain_chroma import Chroma
 import os
-from app.rag.embeddings import embedding_function
+from app.rag.embeddings.embeddor import get_embedding_function
 from app.rag.processors.deduplicator import deduplicate_documents
 
 class vector_db:
@@ -8,7 +8,7 @@ class vector_db:
 
     self.collection=Chroma(
       collection_name=collection_name,
-      embedding_function=embedding_function,
+      embedding_function=get_embedding_function(),
       chroma_cloud_api_key= os.getenv("CHROMA_API_KEY"),
       tenant = os.getenv("CHROMA_TENANT"),
       database = os.getenv("CHROMA_DATABASE"),
@@ -23,8 +23,6 @@ class vector_db:
     INITIAL_K=20
 
     search_results = self.collection.similarity_search(query, k=INITIAL_K)
-    results = sorted(search_results, key=lambda x: x[1])
-
-    docs_to_return = deduplicate_documents(results)
+    docs_to_return = deduplicate_documents(search_results)
 
     return docs_to_return[:k]

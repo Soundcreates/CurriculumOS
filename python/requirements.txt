@@ -1,5 +1,7 @@
 # LLM & RAG Framework
 langchain
+langchain-community
+langchain-chroma
 langchain-openai
 openai
 
@@ -12,6 +14,7 @@ chromadb
 
 # PDF Processing
 PyPDF2
+pypdf
 pdfplumber
 
 # Document Processing
@@ -25,6 +28,7 @@ pytube
 # Web & HTTP
 requests
 beautifulsoup4
+python-multipart
 
 # Text Processing & NLP
 nltk

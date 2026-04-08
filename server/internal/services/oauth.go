@@ -52,6 +52,15 @@ func (s *OAuthService) GoogleConfig() *oauth2.Config {
 	}
 }
 
+func (s *OAuthService) GoogleConfigForRedirect(redirectURL string) *oauth2.Config {
+	config := s.GoogleConfig()
+	if strings.TrimSpace(redirectURL) != "" {
+		config.RedirectURL = strings.TrimSpace(redirectURL)
+	}
+
+	return config
+}
+
 func (s *OAuthService) TwitterConfig() *oauth2.Config {
 	return &oauth2.Config{
 		ClientID:     s.cfg.TWITTER_OAUTH_CLIENT_ID,
@@ -69,8 +78,17 @@ func (s *OAuthService) TwitterConfig() *oauth2.Config {
 	}
 }
 
-func (s *OAuthService) ExchangeGoogleProfile(ctx context.Context, code string) (*OAuthUserProfile, error) {
-	token, err := s.GoogleConfig().Exchange(ctx, code)
+func (s *OAuthService) TwitterConfigForRedirect(redirectURL string) *oauth2.Config {
+	config := s.TwitterConfig()
+	if strings.TrimSpace(redirectURL) != "" {
+		config.RedirectURL = strings.TrimSpace(redirectURL)
+	}
+
+	return config
+}
+
+func (s *OAuthService) ExchangeGoogleProfile(ctx context.Context, code string, redirectURL string) (*OAuthUserProfile, error) {
+	token, err := s.GoogleConfigForRedirect(redirectURL).Exchange(ctx, code)
 	if err != nil {
 		return nil, err
 	}
@@ -106,8 +124,8 @@ func (s *OAuthService) ExchangeGoogleProfile(ctx context.Context, code string) (
 	}, nil
 }
 
-func (s *OAuthService) ExchangeTwitterProfile(ctx context.Context, code string, verifier string) (*OAuthUserProfile, error) {
-	token, err := s.TwitterConfig().Exchange(ctx, code, oauth2.SetAuthURLParam("code_verifier", verifier))
+func (s *OAuthService) ExchangeTwitterProfile(ctx context.Context, code string, verifier string, redirectURL string) (*OAuthUserProfile, error) {
+	token, err := s.TwitterConfigForRedirect(redirectURL).Exchange(ctx, code, oauth2.SetAuthURLParam("code_verifier", verifier))
 	if err != nil {
 		return nil, err
 	}

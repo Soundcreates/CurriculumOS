@@ -5,8 +5,7 @@ import (
 	"net/http"
 )
 
-
-func RegisterRoutes(handler *handlers.Handler) (*http.ServeMux) {
+func RegisterRoutes(handler *handlers.Handler) *http.ServeMux {
 	mainRouter := http.NewServeMux()
 
 	mainRouter.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -16,7 +15,8 @@ func RegisterRoutes(handler *handlers.Handler) (*http.ServeMux) {
 
 	apiRouter := http.NewServeMux()
 
-	mainRouter.Handle("/api/", http.StripPrefix("/api",apiRouter))
+	mainRouter.Handle("/api/", http.StripPrefix("/api", apiRouter))
 	RegisterAuthRoutes(apiRouter, handler)
+	RegisterPathRoutes(apiRouter, handler)
 	return mainRouter
 }

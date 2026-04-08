@@ -28,12 +28,32 @@ async def source_upload(
 
     if url and url.strip():
         cleaned_url = url.strip()
-        if "playlist" in cleaned_url:
-            all_input_normalized.extend(load_youtube_playlist(cleaned_url))
-            processed_types.append("youtube_playlist")
-        else:
-            all_input_normalized.extend(load_youtube_video(cleaned_url))
-            processed_types.append("youtube_video")
+        try:
+            if "playlist" in cleaned_url or "list=" in cleaned_url:
+                youtube_docs = load_youtube_playlist(cleaned_url)
+                if not youtube_docs:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="No transcript/content extracted from YouTube playlist",
+                    )
+                all_input_normalized.extend(youtube_docs)
+                processed_types.append("youtube_playlist")
+            else:
+                youtube_docs = load_youtube_video(cleaned_url)
+                if not youtube_docs:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="No transcript/content extracted from YouTube video",
+                    )
+                all_input_normalized.extend(youtube_docs)
+                processed_types.append("youtube_video")
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(
+                status_code=400,
+                detail="Failed to process YouTube URL",
+            )
 
     uploaded_files: list[UploadFile] = []
     if isinstance(file, list):
@@ -57,10 +77,11 @@ async def source_upload(
     pipeline_result = pipeline(all_input_normalized)
     if(pipeline_result["success"] == False) :
       return {
-        "message": "NIGGA"
+                "message": "Failed to process uploaded sources"
       }
 
     return {
+        "success": True,
         "message": "Sources processed successfully",
         "processed_types": processed_types,
         "documents_count": len(all_input_normalized),

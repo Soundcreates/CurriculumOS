@@ -5,12 +5,11 @@ import (
 	"net/http"
 )
 
-
-func RegisterPathRoutes(router *http.ServeMux, handler *handlers.Handler){
+func RegisterPathRoutes(router *http.ServeMux, handler *handlers.Handler) {
 	pathRouter := http.NewServeMux()
 
-	router.Handle("/path/", http.StripPrefix("/path/",pathRouter))
+	router.Handle("/path/", http.StripPrefix("/path", pathRouter))
 
-	pathRouter.HandleFunc("/create", handler.CreatePath) 
+	pathRouter.HandleFunc("/create", handler.CreatePath)
 
 }

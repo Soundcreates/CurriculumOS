@@ -30,8 +30,10 @@ func (h *Handler) GoogleOAuthLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	setCookie(w, r, oauthStateCookie, oauthState)
+	oauthService := services.NewOAuthService(h.cfg)
+	callbackURL := oauthCallbackURL(r, "google")
 
-	authURL := services.NewOAuthService(h.cfg).GoogleConfig().AuthCodeURL(
+	authURL := oauthService.GoogleConfigForRedirect(callbackURL).AuthCodeURL(
 		oauthState,
 		oauth2.AccessTypeOffline,
 		oauth2.SetAuthURLParam("prompt", "consent"),
@@ -46,7 +48,8 @@ func (h *Handler) GoogleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	profile, err := services.NewOAuthService(h.cfg).ExchangeGoogleProfile(r.Context(), r.URL.Query().Get("code"))
+	callbackURL := oauthCallbackURL(r, "google")
+	profile, err := services.NewOAuthService(h.cfg).ExchangeGoogleProfile(r.Context(), r.URL.Query().Get("code"), callbackURL)
 	if err != nil {
 		h.redirectOAuthFailure(w, r, "google_exchange_failed")
 		return
@@ -70,8 +73,10 @@ func (h *Handler) TwitterOAuthLogin(w http.ResponseWriter, r *http.Request) {
 
 	setCookie(w, r, oauthStateCookie, oauthState)
 	setCookie(w, r, twitterPKCECookie, verifier)
+	oauthService := services.NewOAuthService(h.cfg)
+	callbackURL := oauthCallbackURL(r, "twitter")
 
-	authURL := services.NewOAuthService(h.cfg).TwitterConfig().AuthCodeURL(
+	authURL := oauthService.TwitterConfigForRedirect(callbackURL).AuthCodeURL(
 		oauthState,
 		oauth2.AccessTypeOffline,
 		oauth2.SetAuthURLParam("code_challenge", challenge),
@@ -93,7 +98,8 @@ func (h *Handler) TwitterOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	profile, err := services.NewOAuthService(h.cfg).ExchangeTwitterProfile(r.Context(), r.URL.Query().Get("code"), verifier)
+	callbackURL := oauthCallbackURL(r, "twitter")
+	profile, err := services.NewOAuthService(h.cfg).ExchangeTwitterProfile(r.Context(), r.URL.Query().Get("code"), verifier, callbackURL)
 	if err != nil {
 		h.redirectOAuthFailure(w, r, "twitter_exchange_failed")
 		return
@@ -235,4 +241,26 @@ func writeOAuthError(w http.ResponseWriter, statusCode int, message string) {
 	_ = json.NewEncoder(w).Encode(map[string]string{
 		"error": message,
 	})
+}
+
+func oauthCallbackURL(r *http.Request, provider string) string {
+	return oauthRequestBaseURL(r) + "/api/auth/oauth/" + provider + "/callback"
+}
+
+func oauthRequestBaseURL(r *http.Request) string {
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+
+	if forwardedProto := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")); forwardedProto != "" {
+		scheme = forwardedProto
+	}
+
+	host := strings.TrimSpace(r.Host)
+	if host == "" {
+		host = strings.TrimSpace(r.Header.Get("X-Forwarded-Host"))
+	}
+
+	return scheme + "://" + host
 }

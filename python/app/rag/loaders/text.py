@@ -1,6 +1,6 @@
 from fastapi import UploadFile
 from langchain_core.documents import Document
-from typing import list
+
 def load_text(text:str) -> list[Document]:
     if not text or not text.strip():
         return []
@@ -15,7 +15,7 @@ def load_text(text:str) -> list[Document]:
         )
     ]
 
-async def load_text_file(file: UploadFile) -> List[Document]:
+async def load_text_file(file: UploadFile) -> list[Document]:
     content = await file.read()
 
     try:
