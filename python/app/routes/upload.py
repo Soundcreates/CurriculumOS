@@ -12,6 +12,8 @@ async def source_upload(
     text: str | None = Form(None),
     url: str | None = Form(None),
     file: UploadFile | list[UploadFile] | None = File(None),
+    time_query: str = Form(...),
+    user_goal: str = Form(...),
 ):
     if not any([text, url, file]):
         raise HTTPException(
@@ -74,7 +76,7 @@ async def source_upload(
                 status_code=400,
                 detail="Unsupported file type. Use .pdf, .txt, or .md",
             )
-    pipeline_result = pipeline(all_input_normalized)
+    pipeline_result = pipeline(all_input_normalized, time_query, user_goal)
     if(pipeline_result["success"] == False) :
       return {
                 "message": "Failed to process uploaded sources"

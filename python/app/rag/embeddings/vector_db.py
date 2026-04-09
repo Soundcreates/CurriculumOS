@@ -22,7 +22,10 @@ class vector_db:
   def similarity_search(self, query, k:int=5):
     INITIAL_K=20
 
-    search_results = self.collection.similarity_search(query, k=INITIAL_K)
-    docs_to_return = deduplicate_documents(search_results)
+    search_results = self.collection.similarity_search_with_score(query, k=INITIAL_K)
+
+    sorted_results = sorted(search_results, key=lambda x: x[1])
+
+    docs_to_return = deduplicate_documents(sorted_results)
 
     return docs_to_return[:k]
