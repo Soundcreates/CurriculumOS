@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes.upload import upload_router
 from app.routes.query import query_router
+from app.database import init_db
+import app.models  # noqa: F401
 from dotenv import load_dotenv
 
 app = FastAPI()
@@ -15,7 +17,8 @@ app.add_middleware(
 )
 
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
+    await init_db()
     print("RAG system is live!")
 
 app.include_router(upload_router, prefix="/upload")

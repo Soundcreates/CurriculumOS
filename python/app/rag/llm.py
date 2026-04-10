@@ -11,4 +11,5 @@ llm = ChatGroq(
 )
 
 def generate_roadmap(prompt: str, context_docs: list[Document]):
-    pass
+    roadmap = llm.invoke(prompt)
+    return roadmap

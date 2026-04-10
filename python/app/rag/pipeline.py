@@ -1,8 +1,9 @@
 from langchain_core.documents import Document
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.rag.embeddings.vector_db import vector_db
 from app.rag.processors.chunker import chunk_documents
-from app.rag.llm import llm
 from app.rag.llm import generate_roadmap
+from app.models.roadmap import Roadmap
 
 def build_time_constrained_prompt(user_goal: str, time_query: str, context: str):
     return f"""
@@ -47,7 +48,7 @@ INSTRUCTIONS:
 
 ----------------------
 
-OUTPUT FORMAT (STRICT):
+OUTPUT FORMAT (STRICT,JSON ONLY):
 
 Day 1:
 Topic:
@@ -56,6 +57,17 @@ Tasks:
 Day 2:
 Topic:
 Tasks:
+
+JSON-FORMAT:
+day: {
+    "number":1,
+    "topic" : "Topci Name",
+    "tasks": [
+        "Task 1",
+        "Task 2",
+        ...]
+
+}
 
 ...
 
@@ -84,17 +96,34 @@ def build_context(docs: list[Document]) -> str:
     return context
     
 
-def pipeline(documents,time_query,user_goal):
-    prompt_context = build_context(documents)
-    chunked_docs = chunk_documents(documents)
+async def pipeline(
+   documents,
+   time_query,
+   user_goal,
+   session: AsyncSession,
+   processed_types: list[str],
+):
+   prompt_context = build_context(documents)
+   chunked_docs = chunk_documents(documents)
 
-    db = vector_db("paths")
-    db.add_documents(chunked_docs)
+   db = vector_db("paths")
+   db.add_documents(chunked_docs)
 
-    prompt = build_time_constrained_prompt(user_goal, time_query, prompt_context)
+   prompt = build_time_constrained_prompt(user_goal, time_query, prompt_context)
+   matched_docs = db.similarity_search(prompt, k=5)
+   roadmap = generate_roadmap(prompt, matched_docs)
 
-    matched_docs = db.similarity_search(prompt,k=5)
+   roadmap_record = Roadmap(
+      user_goal=user_goal,
+      time_query=time_query,
+      roadmap_content=str(roadmap),
+      processed_types=",".join(processed_types),
+      documents_count=len(documents),
+      name=user_goal,
+      description=f"Roadmap for {time_query}",
+   )
+   session.add(roadmap_record)
+   await session.commit()
+   await session.refresh(roadmap_record)
 
-    roadmap = generate_roadmap(prompt, matched_docs)
-
-    return {"success" :True}
+   return {"success": True, "roadmap": roadmap, "roadmap_id": roadmap_record.id}
