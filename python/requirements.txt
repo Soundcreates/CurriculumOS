@@ -36,6 +36,9 @@ spacy
 
 # Data Validation
 pydantic
+sqlmodel
+sqlalchemy
+asyncpg
 
 # Environment & Configuration
 python-dotenv
