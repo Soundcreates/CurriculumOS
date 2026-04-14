@@ -225,8 +225,8 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose }) => {
       payload.append("text", textValue.trim());
     }
 
-    payload.append("duration", durationValue.trim());
-    payload.append("goal", goalValue.trim());
+    payload.append("time_query", durationValue.trim());
+    payload.append("user_goal", goalValue.trim());
 
     setIsSubmitting(true);
     setSubmitError("");
@@ -426,23 +426,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose }) => {
                                     {formatFileSize(preview.file.size)}
                                   </p>
                                 </div>
-                                {isPdf ? (
-                                  <iframe
-                                    src={preview.url}
-                                    title={preview.file.name}
-                                    className="w-full h-56 bg-white"
-                                  />
-                                ) : (
-                                  <div className="h-56 p-4 text-left overflow-hidden">
-                                    <p className="text-xs uppercase tracking-[0.3em] text-text-secondary mb-3">
-                                      Preview
-                                    </p>
-                                    <p className="text-sm text-white/85 whitespace-pre-wrap break-words leading-6">
-                                      {preview.textPreview || "No preview available"}
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
+                             </div>
                             );
                           })}
                         </div>

@@ -102,7 +102,7 @@ TWITTER_OAUTH_CLIENT_ID=your-x-client-id
 TWITTER_OAUTH_CLIENT_SECRET=your-x-client-secret
 ```
 
-Recommended local values:
+Recommended values:
 
 ```env
 SERVER_URL=http://127.0.0.1:8080
@@ -174,13 +174,13 @@ cd client
 npm run dev
 ```
 
-Frontend default URL:
+Frontend local URL:
 
 ```text
 http://127.0.0.1:5173
 ```
 
-Backend default URL:
+Backend local URL:
 
 ```text
 http://127.0.0.1:8080

@@ -1,11 +1,9 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.rag.loaders.youtube import load_youtube_video, load_youtube_playlist
 from app.rag.loaders.text import load_text, load_text_file
 from app.rag.loaders.pdf import load_pdf
 from app.rag.pipeline import pipeline
 from app.rag.processors.cleaner import clean_documents
-from app.database import get_session
 
 upload_router = APIRouter()
 
@@ -16,7 +14,6 @@ async def source_upload(
     file: UploadFile | list[UploadFile] | None = File(None),
     time_query: str = Form(...),
     user_goal: str = Form(...),
-    session: AsyncSession = Depends(get_session),
 ):
     if not any([text, url, file]):
         raise HTTPException(
@@ -83,18 +80,6 @@ async def source_upload(
         all_input_normalized,
         time_query,
         user_goal,
-        session,
         processed_types,
     )
-    if(pipeline_result["success"] == False) :
-      return {
-                "message": "Failed to process uploaded sources"
-      }
-
-    return {
-        "success": True,
-        "message": "Sources processed successfully",
-        "processed_types": processed_types,
-        "documents_count": len(all_input_normalized),
-        "roadmap_id": pipeline_result.get("roadmap_id"),
-    }
+    return pipeline_result

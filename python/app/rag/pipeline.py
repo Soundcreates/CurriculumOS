@@ -1,9 +1,7 @@
 from langchain_core.documents import Document
-from sqlalchemy.ext.asyncio import AsyncSession
 from app.rag.embeddings.vector_db import vector_db
 from app.rag.processors.chunker import chunk_documents
 from app.rag.llm import generate_roadmap
-from app.models.roadmap import Roadmap
 
 def build_time_constrained_prompt(user_goal: str, time_query: str, context: str):
     return f"""
@@ -59,15 +57,15 @@ Topic:
 Tasks:
 
 JSON-FORMAT:
-day: {
-    "number":1,
-    "topic" : "Topci Name",
+day: {{
+   "number": 1,
+   "topic": "Topic Name",
     "tasks": [
         "Task 1",
-        "Task 2",
-        ...]
+      "Task 2"
+   ]
 
-}
+}}
 
 ...
 
@@ -100,7 +98,6 @@ async def pipeline(
    documents,
    time_query,
    user_goal,
-   session: AsyncSession,
    processed_types: list[str],
 ):
    prompt_context = build_context(documents)
@@ -113,17 +110,14 @@ async def pipeline(
    matched_docs = db.similarity_search(prompt, k=5)
    roadmap = generate_roadmap(prompt, matched_docs)
 
-   roadmap_record = Roadmap(
-      user_goal=user_goal,
-      time_query=time_query,
-      roadmap_content=str(roadmap),
-      processed_types=",".join(processed_types),
-      documents_count=len(documents),
-      name=user_goal,
-      description=f"Roadmap for {time_query}",
-   )
-   session.add(roadmap_record)
-   await session.commit()
-   await session.refresh(roadmap_record)
+   roadmap_content = str(roadmap)
 
-   return {"success": True, "roadmap": roadmap, "roadmap_id": roadmap_record.id}
+   return {
+      "success": True,
+      "message": "Roadmap generated successfully",
+      "roadmap": roadmap_content,
+      "user_goal": user_goal,
+      "time_query": time_query,
+      "processed_types": processed_types,
+      "documents_count": len(documents),
+   }

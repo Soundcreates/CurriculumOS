@@ -32,7 +32,7 @@ func InitConfig() (*Config, error) {
 		return nil, err
 	}
 
-	serverURL := getEnv("SERVER_URL", "http://localhost:8080")
+	serverURL := getEnv("SERVER_URL", "http://127.0.0.1:8080")
 
 	cfg := &Config{
 		PORT:                        getEnv("PORT", ":8080"),
@@ -40,7 +40,7 @@ func InitConfig() (*Config, error) {
 		JWT_SECRET:                  strings.TrimSpace(os.Getenv("JWT_SECRET")),
 		STATE:                       strings.TrimSpace(os.Getenv("STATE")),
 		SERVER_URL:                  serverURL,
-		CLIENT_URL:                  getEnv("CLIENT_URL", "http://localhost:5173"),
+		CLIENT_URL:                  getEnv("CLIENT_URL", "http://127.0.0.1:5173"),
 		GOOGLE_OAUTH_CLIENT_ID:      strings.TrimSpace(os.Getenv("GOOGLE_OAUTH_CLIENT_ID")),
 		GOOGLE_OAUTH_CLIENT_SECRET:  strings.TrimSpace(os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET")),
 		GOOGLE_OAUTH_REDIRECT_URL:   getEnv("GOOGLE_OAUTH_REDIRECT_URL", serverURL+"/api/auth/oauth/google/callback"),

@@ -26,13 +26,12 @@ func main() {
 		log.Fatal("Failed to initialize database:", err)
 	}
 
-	db.AutoMigrate(models.User{})
+	db.AutoMigrate(models.User{}, models.Roadmap{})
 	handler := handlers.NewHandler(db, cfg)
 
 	mux := routes.RegisterRoutes(handler)
 
 	allowedOrigins := []string{
-		"http://localhost:5173",
 		cfg.CLIENT_URL,
 	}
 	corsHandler := cors.New(cors.Options{
@@ -48,7 +47,7 @@ func main() {
 	handler2 := corsHandler.Handler(mux)
 	log.Printf("Starting server on port %s", cfg.PORT)
 	addr := fmt.Sprintf(":%s", cfg.PORT)
-	
+
 	err = http.ListenAndServe(addr, handler2)
 	if err != nil {
 		log.Fatalf("Server failed to start: %v", err)

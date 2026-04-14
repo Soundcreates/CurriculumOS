@@ -1,5 +1,8 @@
 from langchain_groq import ChatGroq
 from langchain_core.documents import Document
+from dotenv import load_dotenv
+
+load_dotenv()
 
 llm = ChatGroq(
     model="qwen/qwen3-32b",
