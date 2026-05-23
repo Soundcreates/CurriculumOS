@@ -11,6 +11,7 @@ func RegisterAuthRoutes(apiRouter *http.ServeMux, handler *handlers.Handler) {
 	authRouter.HandleFunc("/login", handler.Login)
 	authRouter.HandleFunc("/register", handler.Register)
 	authRouter.HandleFunc("/me", handler.Me)
+	authRouter.HandleFunc("/session/validate", handler.ValidateSession)
 	authRouter.HandleFunc("/logout", handler.Logout)
 	authRouter.HandleFunc("/oauth/google/login", handler.GoogleOAuthLogin)
 	authRouter.HandleFunc("/oauth/google/callback", handler.GoogleOAuthCallback)

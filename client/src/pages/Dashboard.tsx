@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import Navigation from "../components/Navigation";
 import Card from "../components/Card";
@@ -6,6 +7,7 @@ import AddCourseModal from "../components/AddCourseModal";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Plus } from "lucide-react";
+import { getAllPaths, type Roadmap } from "@/apis/pathApi";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -13,42 +15,16 @@ const Dashboard: React.FC = () => {
   const headerRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [paths, setPaths] = useState<Array<Roadmap>>([]);
+  const navigate = useNavigate();
 
-  const curriculumItems = [
-    {
-      number: "01",
-      title: "Systems Thinking",
-      description:
-        "Understand the web of interconnectedness in modern software architecture.",
-    },
-    {
-      number: "02",
-      title: "Mental Models",
-      description:
-        "Core frameworks for decision making in high-uncertainty environments.",
-    },
-    {
-      number: "03",
-      title: "Design Patterns",
-      description: "Reusable solutions to common problems in software design.",
-    },
-    {
-      number: "04",
-      title: "Cognitive Bias",
-      description: "Identifying and mitigating flaws in human judgment.",
-    },
-    {
-      number: "05",
-      title: "Game Theory",
-      description:
-        "Strategic decision making and mathematical modeling of conflict.",
-    },
-    {
-      number: "06",
-      title: "Cryptography",
-      description: "The mathematical foundations of secure communication.",
-    },
-  ];
+  useEffect(() => {
+    const handleFetchPaths = async () => {
+      const response = await getAllPaths();
+      setPaths(response as Array<Roadmap>);
+    };
+    handleFetchPaths();
+  }, []);
 
   useEffect(() => {
     const tl = gsap.timeline();
@@ -123,11 +99,41 @@ const Dashboard: React.FC = () => {
             ref={gridRef}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-20"
           >
-            {curriculumItems.map((item, index) => (
-              <div key={index} className="group cursor-pointer">
-                <Card {...item} />
+            {paths?.length === 0 ? (
+              <div className="col-span-full min-h-[55vh] flex items-center justify-center">
+                <div className="w-full max-w-2xl flex flex-col items-center justify-center text-center py-16 px-6 border border-white/10 bg-white/[0.02] rounded-xl">
+                  <h3 className="text-2xl md:text-3xl font-serif text-white mb-3">
+                    No learning paths available
+                  </h3>
+                  <p className="text-text-secondary max-w-xl mb-8 leading-relaxed">
+                    You don&apos;t have any active paths right now. Create one
+                    to generate a focused roadmap from your sources and start
+                    learning with structure.
+                  </p>
+                  <button
+                    onClick={() => setIsModalOpen(true)}
+                    className="flex items-center gap-2 bg-white text-black px-5 py-2 rounded-lg font-serif hover:bg-white/90 transition-colors"
+                  >
+                    <Plus size={18} />
+                    <span>Create New</span>
+                  </button>
+                </div>
               </div>
-            ))}
+            ) : (
+              paths?.map((item, index) => (
+                <div
+                  key={index}
+                  className="group cursor-pointer"
+                  onClick={() => navigate(`/path/${item.id}`)}
+                >
+                  <Card
+                    id={String(item.id)}
+                    name={item.name}
+                    description={item.description}
+                  />
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

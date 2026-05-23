@@ -9,6 +9,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
+import SpecificPathView from "./pages/SpecificPathView";
 import { useEffect } from "react";
 import Lenis from "lenis";
 import gsap from "gsap";
@@ -68,6 +69,7 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/path/:id" element={<SpecificPathView />} />
       </Routes>
     </Router>
   );

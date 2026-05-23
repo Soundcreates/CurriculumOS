@@ -23,6 +23,13 @@ export type AuthUser = {
   hasPassword: boolean;
 };
 
+export type ValidateSessionResponse = {
+  valid: boolean;
+  user?: AuthUser;
+  sessionId?: string;
+  sessionExpiresAt?: number;
+};
+
 export function getOAuthLoginUrl(provider: OAuthProvider) {
   return `${apiBaseUrl}/auth/oauth/${provider}/login`;
 }
@@ -45,4 +52,8 @@ export function getCurrentUser() {
 
 export function logout() {
   return api.post("/auth/logout");
+}
+
+export async function validateSession() {
+  return api.get<ValidateSessionResponse>("/auth/session/validate");
 }

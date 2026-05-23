@@ -408,10 +408,6 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose }) => {
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {filePreviews.map((preview) => {
-                            const isPdf =
-                              preview.file.type === "application/pdf" ||
-                              preview.file.name.toLowerCase().endsWith(".pdf");
-
                             return (
                               <div
                                 key={`${preview.file.name}-${preview.file.size}`}

@@ -71,6 +71,14 @@ func (h *Handler) CreatePath(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if h.db != nil {
+			user, err := h.currentUserFromRequest(r)
+			if err != nil {
+				services.WriteJSON(w, http.StatusUnauthorized, map[string]string{
+					"error": "unauthorized",
+				})
+				return
+			}
+
 			userGoal, timeQuery, parseErr := extractRoadmapRequestFields(r.Header.Get("Content-Type"), requestBody)
 			if parseErr != nil {
 				services.WriteJSON(w, http.StatusInternalServerError, map[string]string{
@@ -100,6 +108,7 @@ func (h *Handler) CreatePath(w http.ResponseWriter, r *http.Request) {
 				DocumentsCount:  documentsCount,
 				RoadmapContent:  roadmapContent,
 				ResponsePayload: string(responsePayload),
+				AuthorID:        user.ID,
 			}
 
 			if err := h.db.Create(&roadmapRecord).Error; err != nil {
@@ -185,6 +194,225 @@ func extractStringSlice(value any) []string {
 	default:
 		return nil
 	}
+}
+
+func (h *Handler) GetPaths(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		services.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{
+			"error": "method not allowed",
+		})
+		return
+	}
+
+	user, err := h.currentUserFromRequest(r)
+	if err != nil {
+		services.WriteJSON(w, http.StatusUnauthorized, map[string]string{
+			"error": "unauthorized",
+		})
+		return
+	}
+
+	var roadmaps []models.Roadmap
+	if err := h.db.Where("author_id = ?", user.ID).Find(&roadmaps).Error; err != nil {
+		services.WriteJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": fmt.Sprintf("failed to retrieve roadmaps: %s", err),
+		})
+		return
+	}
+
+	services.WriteJSON(w, http.StatusOK, map[string]any{
+		"success":  true,
+		"roadmaps": roadmaps,
+	})
+}
+
+type dayProgressEntry struct {
+	DayLabel  string `json:"dayLabel"`
+	Completed bool   `json:"completed"`
+}
+
+func parseDayProgress(raw string) []dayProgressEntry {
+	if strings.TrimSpace(raw) == "" {
+		return []dayProgressEntry{}
+	}
+
+	var result []dayProgressEntry
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		return []dayProgressEntry{}
+	}
+
+	return result
+}
+
+func (h *Handler) UpdateDayProgress(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPatch {
+		services.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{
+			"error": "method not allowed",
+		})
+		return
+	}
+
+	user, err := h.currentUserFromRequest(r)
+	if err != nil {
+		services.WriteJSON(w, http.StatusUnauthorized, map[string]string{
+			"error": "unauthorized",
+		})
+		return
+	}
+
+	var payload struct {
+		RoadmapID uint   `json:"roadmapId"`
+		DayLabel  string `json:"dayLabel"`
+		Completed bool   `json:"completed"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		services.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "invalid request body",
+		})
+		return
+	}
+
+	if payload.RoadmapID == 0 || strings.TrimSpace(payload.DayLabel) == "" {
+		services.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "roadmapId and dayLabel are required",
+		})
+		return
+	}
+
+	var roadmap models.Roadmap
+	if err := h.db.Where("id = ? AND author_id = ?", payload.RoadmapID, user.ID).First(&roadmap).Error; err != nil {
+		services.WriteJSON(w, http.StatusNotFound, map[string]string{
+			"error": "roadmap not found",
+		})
+		return
+	}
+
+	progress := parseDayProgress(roadmap.DayProgress)
+	updated := false
+	for i := range progress {
+		if strings.EqualFold(progress[i].DayLabel, payload.DayLabel) {
+			progress[i].Completed = payload.Completed
+			updated = true
+			break
+		}
+	}
+	if !updated {
+		progress = append(progress, dayProgressEntry{
+			DayLabel:  payload.DayLabel,
+			Completed: payload.Completed,
+		})
+	}
+
+	serialized, err := json.Marshal(progress)
+	if err != nil {
+		services.WriteJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "failed to serialize day progress",
+		})
+		return
+	}
+
+	roadmap.DayProgress = string(serialized)
+	if err := h.db.Save(&roadmap).Error; err != nil {
+		services.WriteJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "failed to save day progress",
+		})
+		return
+	}
+
+	services.WriteJSON(w, http.StatusOK, map[string]any{
+		"success":     true,
+		"dayProgress": progress,
+	})
+}
+
+func (h *Handler) GenerateQuiz(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		services.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{
+			"error": "method not allowed",
+		})
+		return
+	}
+
+	user, err := h.currentUserFromRequest(r)
+	if err != nil {
+		services.WriteJSON(w, http.StatusUnauthorized, map[string]string{
+			"error": "unauthorized",
+		})
+		return
+	}
+
+	var payload struct {
+		RoadmapID uint `json:"roadmapId"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		services.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "invalid request body",
+		})
+		return
+	}
+	if payload.RoadmapID == 0 {
+		services.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "roadmapId is required",
+		})
+		return
+	}
+
+	var roadmap models.Roadmap
+	if err := h.db.Where("id = ? AND author_id = ?", payload.RoadmapID, user.ID).First(&roadmap).Error; err != nil {
+		services.WriteJSON(w, http.StatusNotFound, map[string]string{
+			"error": "roadmap not found",
+		})
+		return
+	}
+
+	pythonPayload, err := json.Marshal(map[string]any{
+		"roadmap_content": roadmap.RoadmapContent,
+		"user_goal":       roadmap.UserGoal,
+		"time_query":      roadmap.TimeQuery,
+		"processed_types": roadmap.ProcessedTypes,
+		"documents_count": roadmap.DocumentsCount,
+	})
+	if err != nil {
+		services.WriteJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "failed to prepare quiz request",
+		})
+		return
+	}
+
+	pythonReq, err := http.NewRequest(
+		http.MethodPost,
+		h.cfg.PYTHON_URL+"/quiz/generate",
+		bytes.NewReader(pythonPayload),
+	)
+	if err != nil {
+		services.WriteJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "failed to build quiz request",
+		})
+		return
+	}
+	pythonReq.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	pythonRes, err := client.Do(pythonReq)
+	if err != nil {
+		services.WriteJSON(w, http.StatusBadGateway, map[string]string{
+			"error": "failed to reach quiz service",
+		})
+		return
+	}
+	defer pythonRes.Body.Close()
+
+	normalized, err := services.Normalize_response(pythonRes)
+	if err != nil {
+		services.WriteJSON(w, http.StatusBadGateway, map[string]string{
+			"error": "invalid quiz service response",
+		})
+		return
+	}
+
+	services.WriteJSON(w, pythonRes.StatusCode, normalized)
 }
 
 func extractInt(value any) int {

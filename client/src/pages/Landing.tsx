@@ -6,8 +6,11 @@ import Navigation from "../components/Navigation";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { validateSession } from "../apis/authApi";
 gsap.registerPlugin(ScrollTrigger);
 function Landing() {
+  const navigate = useNavigate();
   const features = [
     {
       number: "01",
@@ -34,6 +37,21 @@ function Landing() {
   const featuresRef = useRef<HTMLDivElement>(null);
   const modernMindRef = useRef<HTMLDivElement>(null);
   const modernMindTextRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const autoRedirectIfSessionValid = async () => {
+      try {
+        const response = await validateSession();
+        if (response.data.valid) {
+          navigate("/dashboard", { replace: true });
+        }
+      } catch {
+        // Keep user on landing if session is missing/expired/invalid.
+      }
+    };
+
+    autoRedirectIfSessionValid();
+  }, [navigate]);
 
   useEffect(() => {
     const heroElement = heroRef.current;
@@ -135,7 +153,11 @@ function Landing() {
               className={`animate-fade-up`}
               style={{ animationDelay: `${0.8 + index * 0.2}s` }}
             >
-              <Card {...feature} />
+              <Card
+                id={feature.number}
+                name={feature.title}
+                description={feature.description}
+              />
             </div>
           ))}
         </div>

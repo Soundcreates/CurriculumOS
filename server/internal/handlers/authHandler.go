@@ -114,6 +114,46 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handler) ValidateSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{
+			"error": "method not allowed",
+		})
+		return
+	}
+
+	user, err := h.currentUserFromRequest(r)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]any{
+			"valid": false,
+		})
+		return
+	}
+
+	token, err := readCookie(r, authTokenCookie)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]any{
+			"valid": false,
+		})
+		return
+	}
+
+	claims, err := services.ParseAuthToken(h.cfg, token)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]any{
+			"valid": false,
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"valid":              true,
+		"user":               safeUser(user),
+		"sessionId":          claims["session_id"],
+		"sessionExpiresAt":   claims["session_expires_at"],
+	})
+}
+
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{

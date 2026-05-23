@@ -2,6 +2,7 @@ package services
 
 import (
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"curriculumOs/config"
 	"curriculumOs/db/models"
@@ -145,12 +146,19 @@ func IssueAuthToken(cfg *config.Config, user *models.User) (string, error) {
 	}
 
 	now := time.Now()
+	sessionID, err := newSessionID()
+	if err != nil {
+		return "", err
+	}
+	expiresAt := now.Add(7 * 24 * time.Hour).Unix()
 	payload, err := encodeJWTPart(map[string]any{
 		"sub":      strconv.FormatUint(uint64(user.ID), 10),
 		"email":    user.Email,
 		"provider": user.AuthProvider,
+		"session_id": sessionID,
+		"session_expires_at": expiresAt,
 		"iat":      now.Unix(),
-		"exp":      now.Add(7 * 24 * time.Hour).Unix(),
+		"exp":      expiresAt,
 	})
 	if err != nil {
 		return "", err
@@ -160,6 +168,14 @@ func IssueAuthToken(cfg *config.Config, user *models.User) (string, error) {
 	signature := signJWT(cfg.JWT_SECRET, unsignedToken)
 
 	return unsignedToken + "." + signature, nil
+}
+
+func newSessionID() (string, error) {
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(raw), nil
 }
 
 func ParseAuthToken(cfg *config.Config, token string) (map[string]any, error) {

@@ -40,7 +40,7 @@ func main() {
 			"Authorization",
 			"Content-Type",
 		},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowCredentials: true,
 	})
 
