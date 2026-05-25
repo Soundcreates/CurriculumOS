@@ -110,6 +110,7 @@ async def pipeline(
    time_query,
    user_goal,
    processed_types: list[str],
+   llm=None,
 ):
    chunked_docs = chunk_documents(documents)
 
@@ -123,7 +124,7 @@ async def pipeline(
    prompt_context = build_context(reranked_docs)
    print("reranking of documents have been completed")
    prompt = build_time_constrained_prompt(user_goal, time_query, prompt_context)
-   roadmap = generate_roadmap_structured(prompt, StructuredRoadmap)
+   roadmap = generate_roadmap_structured(prompt, StructuredRoadmap, llm=llm)
 
    normalized_days = sorted(
       roadmap.days,

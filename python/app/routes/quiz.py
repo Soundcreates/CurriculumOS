@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from app.rag.llm import generate_quiz_structured
+from app.ml_models import ml_models
 from groq import BadRequestError
 import re
 import json
@@ -134,6 +135,12 @@ Rules:
 
 @quiz_router.post("/generate")
 async def generate_quiz_route(payload: QuizGenerateRequest):
+    if not ml_models.get("ready"):
+        raise HTTPException(
+            status_code=503,
+            detail="ML models are still loading. Please retry in a moment.",
+        )
+
     if payload.questions_per_tier not in {6, 10, 15}:
         raise HTTPException(status_code=400, detail="questions_per_tier must be one of 6, 10, 15")
 
@@ -141,12 +148,12 @@ async def generate_quiz_route(payload: QuizGenerateRequest):
     prompt = _build_quiz_prompt(payload, concept_context)
 
     try:
-        quiz = generate_quiz_structured(prompt, QuizResponse)
+        quiz = generate_quiz_structured(prompt, QuizResponse, llm=ml_models.get("llm"))
     except BadRequestError:
         # Retry with tighter context when provider rejects message length.
         reduced_context = _compact_roadmap_context(concept_context, max_chars=5000)
         prompt = _build_quiz_prompt(payload, reduced_context)
-        quiz = generate_quiz_structured(prompt, QuizResponse)
+        quiz = generate_quiz_structured(prompt, QuizResponse, llm=ml_models.get("llm"))
 
     expected_total = payload.difficulty_tiers * payload.questions_per_tier
     tier_counts: dict[int, int] = {tier: 0 for tier in range(1, payload.difficulty_tiers + 1)}

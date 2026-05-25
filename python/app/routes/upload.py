@@ -1,4 +1,5 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request
+from app.ml_models import ml_models
 from app.rag.loaders.youtube import load_youtube_video, load_youtube_playlist
 from app.rag.loaders.text import load_text, load_text_file
 from app.rag.loaders.pdf import load_pdf
@@ -9,12 +10,19 @@ upload_router = APIRouter()
 
 @upload_router.post("/source-upload")
 async def source_upload(
+    request: Request,
     text: str | None = Form(None),
     url: str | None = Form(None),
     file: UploadFile | list[UploadFile] | None = File(None),
     time_query: str = Form(...),
     user_goal: str = Form(...),
 ):
+    if not ml_models.get("ready"):
+        raise HTTPException(
+            status_code=503,
+            detail="ML models are still loading. Please retry in a moment.",
+        )
+
     if not any([text, url, file]):
         raise HTTPException(
             status_code=400,
@@ -81,5 +89,6 @@ async def source_upload(
         time_query,
         user_goal,
         processed_types,
+        llm=ml_models.get("llm"),
     )
     return pipeline_result

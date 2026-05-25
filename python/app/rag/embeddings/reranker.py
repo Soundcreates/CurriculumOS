@@ -1,20 +1,23 @@
 from __future__ import annotations
 
 import re
-from functools import lru_cache
 from hashlib import sha1
 
 from langchain_core.documents import Document
 from sentence_transformers import CrossEncoder
 
+from app.ml_models import ml_models
 
 RERANKER_MODEL_NAME = "BAAI/bge-reranker-base"
 _WHITESPACE_RE = re.compile(r"\s+")
 
 
-@lru_cache(maxsize=1)
 def get_reranker():
-    return CrossEncoder(RERANKER_MODEL_NAME)
+    reranker = ml_models.get("reranker")
+    if reranker is None:
+        reranker = CrossEncoder(RERANKER_MODEL_NAME)
+        ml_models["reranker"] = reranker
+    return reranker
 
 
 def normalize_text(text: str) -> str:
