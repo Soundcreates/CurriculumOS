@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"log"
 	"os"
 	"strings"
@@ -28,14 +29,17 @@ func InitConfig() (*Config, error) {
 	log.Println("Initializing configuration...")
 
 	if err := godotenv.Load(); err != nil {
-		log.Print("Error loading .env file")
-		return nil, err
+		if errors.Is(err, os.ErrNotExist) {
+			log.Print(".env file not found, using environment variables")
+		} else {
+			log.Printf("Failed to load .env file: %v", err)
+		}
 	}
 
 	serverURL := getEnv("SERVER_URL", "http://127.0.0.1:8080")
 
 	cfg := &Config{
-		PORT:                        getEnv("PORT", ":8080"),
+		PORT:                        getEnv("PORT", "8080"),
 		DATABASE_URL:                strings.TrimSpace(os.Getenv("DATABASE_URL")),
 		JWT_SECRET:                  strings.TrimSpace(os.Getenv("JWT_SECRET")),
 		STATE:                       strings.TrimSpace(os.Getenv("STATE")),
