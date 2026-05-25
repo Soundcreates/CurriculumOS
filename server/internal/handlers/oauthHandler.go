@@ -31,7 +31,7 @@ func (h *Handler) GoogleOAuthLogin(w http.ResponseWriter, r *http.Request) {
 
 	setCookie(w, r, oauthStateCookie, oauthState)
 	oauthService := services.NewOAuthService(h.cfg)
-	callbackURL := oauthCallbackURL(r, "google")
+	callbackURL := oauthCallbackURL(r, h.cfg, "google")
 
 	authURL := oauthService.GoogleConfigForRedirect(callbackURL).AuthCodeURL(
 		oauthState,
@@ -48,7 +48,7 @@ func (h *Handler) GoogleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	callbackURL := oauthCallbackURL(r, "google")
+	callbackURL := oauthCallbackURL(r, h.cfg, "google")
 	profile, err := services.NewOAuthService(h.cfg).ExchangeGoogleProfile(r.Context(), r.URL.Query().Get("code"), callbackURL)
 	if err != nil {
 		h.redirectOAuthFailure(w, r, "google_exchange_failed")
@@ -74,7 +74,7 @@ func (h *Handler) TwitterOAuthLogin(w http.ResponseWriter, r *http.Request) {
 	setCookie(w, r, oauthStateCookie, oauthState)
 	setCookie(w, r, twitterPKCECookie, verifier)
 	oauthService := services.NewOAuthService(h.cfg)
-	callbackURL := oauthCallbackURL(r, "twitter")
+	callbackURL := oauthCallbackURL(r, h.cfg, "twitter")
 
 	authURL := oauthService.TwitterConfigForRedirect(callbackURL).AuthCodeURL(
 		oauthState,
@@ -98,7 +98,7 @@ func (h *Handler) TwitterOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	callbackURL := oauthCallbackURL(r, "twitter")
+	callbackURL := oauthCallbackURL(r, h.cfg, "twitter")
 	profile, err := services.NewOAuthService(h.cfg).ExchangeTwitterProfile(r.Context(), r.URL.Query().Get("code"), verifier, callbackURL)
 	if err != nil {
 		h.redirectOAuthFailure(w, r, "twitter_exchange_failed")
@@ -243,7 +243,18 @@ func writeOAuthError(w http.ResponseWriter, statusCode int, message string) {
 	})
 }
 
-func oauthCallbackURL(r *http.Request, provider string) string {
+func oauthCallbackURL(r *http.Request, cfg *config.Config, provider string) string {
+	switch provider {
+	case "google":
+		if redirect := strings.TrimSpace(cfg.GOOGLE_OAUTH_REDIRECT_URL); redirect != "" {
+			return redirect
+		}
+	case "twitter":
+		if redirect := strings.TrimSpace(cfg.TWITTER_OAUTH_REDIRECT_URL); redirect != "" {
+			return redirect
+		}
+	}
+
 	return oauthRequestBaseURL(r) + "/api/auth/oauth/" + provider + "/callback"
 }
 
