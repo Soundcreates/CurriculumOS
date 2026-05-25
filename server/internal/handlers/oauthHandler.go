@@ -201,26 +201,65 @@ func validateOAuthState(r *http.Request, cfg *config.Config) bool {
 }
 
 func setCookie(w http.ResponseWriter, r *http.Request, name string, value string) {
+	sameSite, secure := cookiePolicy(r)
 	http.SetCookie(w, &http.Cookie{
 		Name:     name,
 		Value:    value,
 		Path:     "/",
 		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Secure:   r.TLS != nil,
+		SameSite: sameSite,
+		Secure:   secure,
 	})
 }
 
 func clearCookie(w http.ResponseWriter, r *http.Request, name string) {
+	sameSite, secure := cookiePolicy(r)
 	http.SetCookie(w, &http.Cookie{
 		Name:     name,
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
 		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Secure:   r.TLS != nil,
+		SameSite: sameSite,
+		Secure:   secure,
 	})
+}
+
+func cookiePolicy(r *http.Request) (http.SameSite, bool) {
+	clientOrigin := strings.TrimSpace(r.Header.Get("Origin"))
+	clientReferer := strings.TrimSpace(r.Header.Get("Referer"))
+
+	// Use request host/proxy hints for secure detection behind TLS-terminating proxies.
+	secure := r.TLS != nil || strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")), "https")
+	if !secure {
+		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(r.Host)), "localhost") {
+			secure = false
+		}
+	}
+
+	// If request is cross-site (Origin/Referer differs from API host), cookie must be SameSite=None.
+	requestBase := oauthRequestBaseURL(r)
+	if clientOrigin != "" {
+		if !sameSiteOrigin(clientOrigin, requestBase) {
+			return http.SameSiteNoneMode, true
+		}
+	}
+	if clientReferer != "" {
+		if !sameSiteOrigin(clientReferer, requestBase) {
+			return http.SameSiteNoneMode, true
+		}
+	}
+
+	return http.SameSiteLaxMode, secure
+}
+
+func sameSiteOrigin(left, right string) bool {
+	leftURL, leftErr := url.Parse(left)
+	rightURL, rightErr := url.Parse(right)
+	if leftErr != nil || rightErr != nil {
+		return false
+	}
+	return strings.EqualFold(leftURL.Scheme, rightURL.Scheme) && strings.EqualFold(leftURL.Host, rightURL.Host)
 }
 
 func readCookie(r *http.Request, name string) (string, error) {
