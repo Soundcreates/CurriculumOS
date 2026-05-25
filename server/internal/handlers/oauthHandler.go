@@ -201,13 +201,13 @@ func validateOAuthState(r *http.Request, cfg *config.Config) bool {
 }
 
 func setCookie(w http.ResponseWriter, r *http.Request, name string, value string) {
-	sameSite, secure := cookiePolicy(r)
+	_, secure := cookiePolicy(r)
 	http.SetCookie(w, &http.Cookie{
 		Name:     name,
 		Value:    value,
 		Path:     "/",
 		HttpOnly: true,
-		SameSite: sameSite,
+		SameSite: 0,
 		Secure:   secure,
 	})
 }
