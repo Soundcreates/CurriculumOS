@@ -94,8 +94,14 @@ export async function updateDayProgress(
   });
 }
 
-export async function generateQuiz(roadmapId: number) {
+export async function generateQuiz(
+  roadmapId: number,
+  difficultyTiers: number,
+  questionsPerTier: number,
+) {
   return api.post<GenerateQuizResponse>("/path/generate-quiz", {
     roadmapId,
+    difficultyTiers,
+    questionsPerTier,
   });
 }

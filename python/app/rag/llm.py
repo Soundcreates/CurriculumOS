@@ -1,11 +1,11 @@
 from dotenv import load_dotenv
-from langchain_core.documents import Document
 from langchain_groq import ChatGroq
+from pydantic import BaseModel
 
 load_dotenv()
 
 llm = ChatGroq(
-    model="meta-llama/llama-prompt-guard-2-86m",
+    model="llama-3.3-70b-versatile",
     temperature=0,
     max_tokens=None,
     timeout=None,
@@ -13,11 +13,21 @@ llm = ChatGroq(
 )
 
 
-def generate_roadmap(prompt: str, context_docs: list[Document]):
+def generate_roadmap(prompt: str):
     roadmap = llm.invoke(prompt)
     return roadmap
+
+
+def generate_roadmap_structured(prompt: str, schema: type[BaseModel]):
+    structured_llm = llm.with_structured_output(schema)
+    return structured_llm.invoke(prompt)
 
 
 def generate_quiz(prompt: str):
     quiz = llm.invoke(prompt)
     return quiz
+
+
+def generate_quiz_structured(prompt: str, schema: type[BaseModel]):
+    structured_llm = llm.with_structured_output(schema)
+    return structured_llm.invoke(prompt)

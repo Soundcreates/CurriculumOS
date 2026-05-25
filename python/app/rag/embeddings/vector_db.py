@@ -1,56 +1,77 @@
-from langchain_chroma import Chroma
 import os
+
 from app.rag.embeddings.embeddor import get_embedding_function
-from app.rag.processors.deduplicator import deduplicate_documents
+from app.rag.embeddings.reranker import deduplicate_documents, rerank_documents
 from chromadb.errors import InvalidArgumentError
+from langchain_core.documents import Document
+from langchain_chroma import Chroma
+
 
 class vector_db:
-  def __init__(self, collection_name):
-    self.collection_name = collection_name
+    def __init__(self, collection_name):
+        self.collection_name = collection_name
 
-    self.collection=Chroma(
-      collection_name=self.collection_name,
-      embedding_function=get_embedding_function(),
-      chroma_cloud_api_key= os.getenv("CHROMA_API_KEY"),
-      tenant = os.getenv("CHROMA_TENANT"),
-      database = os.getenv("CHROMA_DATABASE"),
-    )
+        self.collection = Chroma(
+            collection_name=self.collection_name,
+            embedding_function=get_embedding_function(),
+            chroma_cloud_api_key=os.getenv("CHROMA_API_KEY"),
+            tenant=os.getenv("CHROMA_TENANT"),
+            database=os.getenv("CHROMA_DATABASE"),
+        )
 
-  def _recreate_collection(self):
-    # Reset a stale collection schema (old embedding dimensions) and rebuild it.
-    try:
-      self.collection.delete_collection()
-    except Exception:
-      pass
+    def _recreate_collection(self):
+        # Reset a stale collection schema (old embedding dimensions) and rebuild it.
+        try:
+            self.collection.delete_collection()
+        except Exception:
+            pass
 
-    self.collection = Chroma(
-      collection_name=self.collection_name,
-      embedding_function=get_embedding_function(),
-      chroma_cloud_api_key=os.getenv("CHROMA_API_KEY"),
-      tenant=os.getenv("CHROMA_TENANT"),
-      database=os.getenv("CHROMA_DATABASE"),
-    )
+        self.collection = Chroma(
+            collection_name=self.collection_name,
+            embedding_function=get_embedding_function(),
+            chroma_cloud_api_key=os.getenv("CHROMA_API_KEY"),
+            tenant=os.getenv("CHROMA_TENANT"),
+            database=os.getenv("CHROMA_DATABASE"),
+        )
 
-  def add_documents(self, documents, batch_size=100):
-    for i in range(0, len(documents), batch_size):
-      batch = documents[i:i+batch_size]
-      try:
-        self.collection.add_documents(batch)
-      except InvalidArgumentError as e:
-        error_message = str(e).lower()
-        if "expecting embedding with dimension" in error_message:
-          self._recreate_collection()
-          self.collection.add_documents(batch)
-        else:
-          raise
+    def add_documents(self, documents, batch_size=100):
+        for i in range(0, len(documents), batch_size):
+            batch = deduplicate_documents(documents[i : i + batch_size])
 
-  def similarity_search(self, query, k:int=5):
-    INITIAL_K=20
+            if not batch:
+                continue
 
-    search_results = self.collection.similarity_search_with_score(query, k=INITIAL_K)
+            try:
+                self.collection.add_documents(batch)
+            except InvalidArgumentError as e:
+                error_message = str(e).lower()
+                if "expecting embedding with dimension" in error_message:
+                    self._recreate_collection()
+                    self.collection.add_documents(batch)
+                else:
+                    raise
 
-    sorted_results = sorted(search_results, key=lambda x: x[1])
+    def similarity_search(self, query, k: int = 5):
+        initial_k = max(k * 4, 20)
 
-    docs_to_return = deduplicate_documents(sorted_results)
+        search_results = self.collection.similarity_search_with_score(
+            query, k=initial_k
+        )
 
-    return docs_to_return[:k]
+        sorted_results = sorted(search_results, key=lambda x: x[1])
+        candidate_documents: list[Document] = []
+
+        for document, vector_score in sorted_results:
+            metadata = dict(document.metadata or {})
+            metadata["vector_score"] = float(vector_score)
+            candidate_documents.append(
+                Document(
+                    page_content=document.page_content,
+                    metadata=metadata,
+                )
+            )
+
+        deduplicated_documents = deduplicate_documents(candidate_documents)
+        reranked_documents = rerank_documents(query, deduplicated_documents)
+
+        return reranked_documents[:k]

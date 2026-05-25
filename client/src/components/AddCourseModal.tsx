@@ -5,6 +5,7 @@ import { createPath } from "../apis/pathApi";
 
 interface AddCourseModalProps {
   onClose: () => void;
+  refreshData: () => void;
 }
 
 type TabType = "document" | "youtube" | "text";
@@ -15,7 +16,7 @@ type FilePreview = {
   textPreview: string;
 };
 
-const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose }) => {
+const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose, refreshData }) => {
   const overlayRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -234,6 +235,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose }) => {
     try {
       await createPath(payload);
       handleClose();
+      refreshData();
     } catch {
       setSubmitError("Failed to create path.");
     } finally {

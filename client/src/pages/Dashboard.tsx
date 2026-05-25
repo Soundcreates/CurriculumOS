@@ -18,12 +18,13 @@ const Dashboard: React.FC = () => {
   const [paths, setPaths] = useState<Array<Roadmap>>([]);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const handleFetchPaths = async () => {
+  const handleFetchPaths = async () => {
       const response = await getAllPaths();
       setPaths(response as Array<Roadmap>);
     };
-    handleFetchPaths();
+ 
+  useEffect(() => {
+   handleFetchPaths();
   }, []);
 
   useEffect(() => {
@@ -55,7 +56,7 @@ const Dashboard: React.FC = () => {
   return (
     <Layout>
       <Navigation />
-      {isModalOpen && <AddCourseModal onClose={() => setIsModalOpen(false)} />}
+      {isModalOpen && <AddCourseModal onClose={() => setIsModalOpen(false)} refreshData = {handleFetchPaths}/>}
       <div className="pt-32 px-8 min-h-screen">
         <div className="max-w-6xl mx-auto">
           <div

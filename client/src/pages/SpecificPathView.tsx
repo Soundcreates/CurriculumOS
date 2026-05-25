@@ -74,6 +74,21 @@ function extractPlansFromObject(data: unknown): DayPlan[] {
   }
 
   const record = data as Record<string, unknown>;
+  const daysArray = Array.isArray(record.days) ? record.days : [];
+  if (daysArray.length > 0) {
+    const fromArray = daysArray
+      .map((value, index) => parseDayObject(`day${index + 1}`, value))
+      .filter((item): item is DayPlan => Boolean(item))
+      .sort(
+        (a, b) =>
+          Number(a.dayLabel.replace(/[^\d]/g, "")) -
+          Number(b.dayLabel.replace(/[^\d]/g, "")),
+      );
+    if (fromArray.length > 0) {
+      return fromArray;
+    }
+  }
+
   const dayEntries = Object.entries(record).filter(([key]) =>
     /^day\s*\d*$/i.test(key),
   );
@@ -173,7 +188,8 @@ function parseRoadmapContent(content: string): DayPlan[] {
     return plansFromMalformedJson;
   }
 
-  const dayRegex = /Day\s*(\d+)\s*:\s*([\s\S]*?)(?=\n\s*Day\s*\d+\s*:|$)/gi;
+  const dayRegex =
+    /(?:^|\n)\s*(?:[#*\- ]*)Day\s*(\d+)\s*[:\-]?\s*([\s\S]*?)(?=\n\s*(?:[#*\- ]*)Day\s*\d+\s*[:\-]?|$)/gi;
   const plans: DayPlan[] = [];
   let match: RegExpExecArray | null;
 
@@ -181,15 +197,38 @@ function parseRoadmapContent(content: string): DayPlan[] {
     const dayNumber = match[1];
     const block = match[2] ?? "";
 
-    const topicMatch = block.match(/Topic\s*:\s*(.*)/i);
-    const topic = topicMatch?.[1]?.trim() || "Learning Focus";
-
-    const tasksSectionMatch = block.match(/Tasks\s*:\s*([\s\S]*)/i);
-    const tasksRaw = tasksSectionMatch?.[1] ?? "";
-    const tasks = tasksRaw
+    const topicMatch = block.match(/(?:\*\*)?\s*Topic(?:\*\*)?\s*:\s*(.*)/i);
+    const fallbackTopicLine = block
       .split("\n")
-      .map((line) => normalizeTaskText(line.replace(/^[-*\d.)\s]+/, "")))
-      .filter(Boolean);
+      .map((line) => normalizeTaskText(line.replace(/[*#>-]/g, "")))
+      .find(
+        (line) =>
+          line &&
+          !/^tasks?\s*:?$/i.test(line) &&
+          !/^[-*]\s*/.test(line) &&
+          !/^\d+[.)]\s+/.test(line),
+      );
+    const topic = topicMatch?.[1]?.trim() || fallbackTopicLine || "Learning Focus";
+
+    const tasksSectionMatch = block.match(/(?:\*\*)?\s*Tasks?(?:\*\*)?\s*:\s*([\s\S]*)/i);
+    const candidateTaskText = tasksSectionMatch?.[1] ?? block;
+    const tasks = candidateTaskText
+      .split("\n")
+      .map((line) =>
+        normalizeTaskText(
+          line
+            .replace(/^\s*(?:[-*]|\d+[.)])\s+/, "")
+            .replace(/^\s*(?:tasks?|topic)\s*:\s*/i, "")
+            .replace(/\*\*/g, ""),
+        ),
+      )
+      .filter(
+        (line) =>
+          Boolean(line) &&
+          !/^learning focus$/i.test(line) &&
+          !/^tasks?$/i.test(line) &&
+          !/^topic$/i.test(line),
+      );
 
     plans.push({
       dayLabel: `Day ${dayNumber}`,
@@ -254,6 +293,8 @@ const SpecificPathView: React.FC = () => {
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const [quizError, setQuizError] = useState("");
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestionView[]>([]);
+  const [difficultyTiers, setDifficultyTiers] = useState(2);
+  const [questionsPerTier, setQuestionsPerTier] = useState(6);
   const heroRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
 
@@ -344,18 +385,26 @@ const SpecificPathView: React.FC = () => {
     }
   };
 
+  const openQuizModal = () => {
+    if (!path || !allDaysCompleted) {
+      return;
+    }
+    setIsQuizModalOpen(true);
+    setQuizError("");
+    setQuizQuestions([]);
+  };
+
   const handleGenerateQuiz = async () => {
     if (!path || !allDaysCompleted) {
       return;
     }
 
-    setIsQuizModalOpen(true);
     setIsGeneratingQuiz(true);
     setQuizError("");
     setQuizQuestions([]);
 
     try {
-      const response = await generateQuiz(path.id);
+      const response = await generateQuiz(path.id, difficultyTiers, questionsPerTier);
       const parsedQuestions = parseQuizFromResponse(response.data.quiz);
       if (!parsedQuestions.length) {
         setQuizError("Quiz generated, but it could not be parsed into question format.");
@@ -378,6 +427,11 @@ const SpecificPathView: React.FC = () => {
         isLoading={isGeneratingQuiz}
         errorMessage={quizError}
         questions={quizQuestions}
+        difficultyTiers={difficultyTiers}
+        questionsPerTier={questionsPerTier}
+        onDifficultyTiersChange={setDifficultyTiers}
+        onQuestionsPerTierChange={setQuestionsPerTier}
+        onGenerateQuiz={handleGenerateQuiz}
       />
       <div className="min-h-screen px-6 pb-20 pt-28 md:px-10">
         <div className="mx-auto max-w-6xl">
@@ -511,7 +565,7 @@ const SpecificPathView: React.FC = () => {
                   </div>
 
                   <button
-                    onClick={handleGenerateQuiz}
+                    onClick={openQuizModal}
                     disabled={!allDaysCompleted}
                     className="rounded-full bg-white px-5 py-2 font-sans text-xs uppercase tracking-[0.28em] text-black transition-colors hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
                   >

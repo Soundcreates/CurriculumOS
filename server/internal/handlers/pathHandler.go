@@ -343,7 +343,9 @@ func (h *Handler) GenerateQuiz(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload struct {
-		RoadmapID uint `json:"roadmapId"`
+		RoadmapID        uint `json:"roadmapId"`
+		DifficultyTiers  int  `json:"difficultyTiers"`
+		QuestionsPerTier int  `json:"questionsPerTier"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -355,6 +357,18 @@ func (h *Handler) GenerateQuiz(w http.ResponseWriter, r *http.Request) {
 	if payload.RoadmapID == 0 {
 		services.WriteJSON(w, http.StatusBadRequest, map[string]string{
 			"error": "roadmapId is required",
+		})
+		return
+	}
+	if payload.DifficultyTiers < 1 || payload.DifficultyTiers > 4 {
+		services.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "difficultyTiers must be between 1 and 4",
+		})
+		return
+	}
+	if payload.QuestionsPerTier != 6 && payload.QuestionsPerTier != 10 && payload.QuestionsPerTier != 15 {
+		services.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "questionsPerTier must be one of 6, 10, 15",
 		})
 		return
 	}
@@ -373,6 +387,8 @@ func (h *Handler) GenerateQuiz(w http.ResponseWriter, r *http.Request) {
 		"time_query":      roadmap.TimeQuery,
 		"processed_types": roadmap.ProcessedTypes,
 		"documents_count": roadmap.DocumentsCount,
+		"difficulty_tiers": payload.DifficultyTiers,
+		"questions_per_tier": payload.QuestionsPerTier,
 	})
 	if err != nil {
 		services.WriteJSON(w, http.StatusInternalServerError, map[string]string{
