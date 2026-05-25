@@ -1,8 +1,0 @@
-services:
-  postgres-db:
-    image: postgres:14.23-trixie
-    container_name: postgres_db
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: curriculum_os_db
