@@ -29,7 +29,8 @@ pytube
 requests
 beautifulsoup4
 python-multipart
-
+fastapi
+uvicorn
 # Text Processing & NLP
 nltk
 spacy
