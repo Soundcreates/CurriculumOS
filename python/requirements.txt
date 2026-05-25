@@ -198,7 +198,7 @@ Pygments==2.19.1
 PyGObject==3.54.5
 pyinotify==0.9.6
 PyJWT==2.10.1
-pykickstart @ file:///builddir/build/BUILD/pykickstart-3.66-build/pykickstart-3.66
+pykickstart @ 
 pymongo==4.13.2
 PyMuPDF==1.27.2.3
 PyNaCl==1.5.0
@@ -251,13 +251,13 @@ scikit-learn==1.8.0
 scipy==1.17.1
 scour==0.38.2
 SecretStorage==3.3.3
-selinux @ file:///builddir/build/BUILD/libselinux-3.9-build/libselinux-3.9/src
+selinux 
 sentence-transformers==5.5.1
 sentinels==1.1.1
 sentry-sdk==2.35.0
-sepolicy @ file:///builddir/build/BUILD/policycoreutils-3.9-build/selinux-3.9/python/sepolicy
+sepolicy 
 setools==4.6.0
-setroubleshoot @ file:///builddir/build/BUILD/setroubleshoot-3.3.36-build/setroubleshoot-3.3.36/src
+setroubleshoot 
 setuptools==81.0.0
 shellingham==1.5.4
 shtab==1.7.2
