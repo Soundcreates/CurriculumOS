@@ -21,7 +21,6 @@ print(f"Chroma Database: {os.getenv('CHROMA_DATABASE')}")
 async def _load_ml_models() -> None:
     try:
         from langchain_groq import ChatGroq
-        from sentence_transformers import CrossEncoder
 
         ml_models["llm"] = ChatGroq(
             model="llama-3.3-70b-versatile",
@@ -30,7 +29,8 @@ async def _load_ml_models() -> None:
             timeout=None,
             max_retries=2,
         )
-        ml_models["reranker"] = CrossEncoder("BAAI/bge-reranker-base")
+        # Keep heavy ranking models lazy-loaded on demand to avoid OOM on small instances.
+        ml_models["reranker"] = None
         ml_models["ready"] = True
         ml_models["error"] = None
     except Exception as exc:
