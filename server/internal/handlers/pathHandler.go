@@ -213,7 +213,7 @@ func (h *Handler) GetPaths(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var roadmaps []models.Roadmap
-	if err := h.db.Where("author_id = ?", user.ID).Find(&roadmaps).Error; err != nil {
+	if err := h.db.Where("author_id= ?", user.ID).Find(&roadmaps).Error; err != nil {
 		services.WriteJSON(w, http.StatusInternalServerError, map[string]string{
 			"error": fmt.Sprintf("failed to retrieve roadmaps: %s", err),
 		})
@@ -382,12 +382,12 @@ func (h *Handler) GenerateQuiz(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pythonPayload, err := json.Marshal(map[string]any{
-		"roadmap_content": roadmap.RoadmapContent,
-		"user_goal":       roadmap.UserGoal,
-		"time_query":      roadmap.TimeQuery,
-		"processed_types": roadmap.ProcessedTypes,
-		"documents_count": roadmap.DocumentsCount,
-		"difficulty_tiers": payload.DifficultyTiers,
+		"roadmap_content":    roadmap.RoadmapContent,
+		"user_goal":          roadmap.UserGoal,
+		"time_query":         roadmap.TimeQuery,
+		"processed_types":    roadmap.ProcessedTypes,
+		"documents_count":    roadmap.DocumentsCount,
+		"difficulty_tiers":   payload.DifficultyTiers,
 		"questions_per_tier": payload.QuestionsPerTier,
 	})
 	if err != nil {
