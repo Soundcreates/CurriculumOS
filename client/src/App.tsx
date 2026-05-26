@@ -14,6 +14,8 @@ import { useEffect } from "react";
 import Lenis from "lenis";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { AuthProvider } from "./context/AuthContext"
+import { ProtectedRoutes } from "./context/ProtectedRoutes.tsx";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -61,16 +63,20 @@ function SmoothScroll() {
 function App() {
   return (
     <Router>
-      <ScrollToTop />
-      <SmoothScroll />
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/path/:id" element={<SpecificPathView />} />
-      </Routes>
+      <AuthProvider>
+        <ProtectedRoutes>
+          <ScrollToTop />
+          <SmoothScroll />
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/path/:id" element={<SpecificPathView />} />
+          </Routes>
+        </ProtectedRoutes>
+      </AuthProvider>
     </Router>
   );
 }
