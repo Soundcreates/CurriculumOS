@@ -5,8 +5,6 @@ import re
 from hashlib import sha1
 
 from langchain_core.documents import Document
-from sentence_transformers import CrossEncoder
-
 from app.ml_models import ml_models
 
 RERANKER_MODEL_NAME = os.getenv("RERANKER_MODEL_NAME", "cross-encoder/ms-marco-MiniLM-L-2-v2")
@@ -23,6 +21,8 @@ def get_reranker():
 
     reranker = ml_models.get("reranker")
     if reranker is None:
+        from sentence_transformers import CrossEncoder
+
         reranker = CrossEncoder(RERANKER_MODEL_NAME)
         ml_models["reranker"] = reranker
     return reranker
@@ -64,8 +64,8 @@ def rerank_documents(query: str, documents: list[Document]) -> list[Document]:
         if reranker is None:
             return documents
 
-        rerank_top_n = int(os.getenv("RERANK_TOP_N", "8"))
-        rerank_batch_size = int(os.getenv("RERANK_BATCH_SIZE", "4"))
+        rerank_top_n = int(os.getenv("RERANK_TOP_N", "6"))
+        rerank_batch_size = int(os.getenv("RERANK_BATCH_SIZE", "2"))
 
         candidates = documents[: max(1, rerank_top_n)]
         pairs = [[query, document.page_content] for document in candidates]
