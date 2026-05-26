@@ -16,6 +16,7 @@ import (
 
 func (h *Handler) CreatePath(w http.ResponseWriter, r *http.Request) {
 	baseUrl := h.cfg.PYTHON_URL + "/upload/source-upload"
+	var user *models.User
 
 	if r.Method != http.MethodPost {
 		services.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{
@@ -24,10 +25,29 @@ func (h *Handler) CreatePath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.db != nil {
+		var err error
+		user, err = h.currentUserFromRequest(r)
+		if err != nil {
+			services.WriteJSON(w, http.StatusUnauthorized, map[string]string{
+				"error": "unauthorized",
+			})
+			return
+		}
+	}
+
 	requestBody, err := io.ReadAll(r.Body)
 	if err != nil {
 		services.WriteJSON(w, http.StatusInternalServerError, map[string]string{
 			"error": "failed to read request body",
+		})
+		return
+	}
+
+	userGoal, timeQuery, parseErr := extractRoadmapRequestFields(r.Header.Get("Content-Type"), requestBody)
+	if parseErr != nil {
+		services.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": fmt.Sprintf("failed to parse roadmap request fields: %s", parseErr),
 		})
 		return
 	}
@@ -48,15 +68,15 @@ func (h *Handler) CreatePath(w http.ResponseWriter, r *http.Request) {
 
 	pythonRes, err := client.Do(pythonReq)
 	if err != nil {
-		services.WriteJSON(w, http.StatusBadRequest, map[string]string{
-			"error": "Bad request!",
+		services.WriteJSON(w, http.StatusBadGateway, map[string]string{
+			"error": fmt.Sprintf("failed to reach python service: %s", err),
 		})
 		return
 	}
 	defer pythonRes.Body.Close()
 	pythonPayload, err := services.Normalize_response(pythonRes)
 	if err != nil {
-		services.WriteJSON(w, http.StatusInternalServerError, map[string]string{
+		services.WriteJSON(w, http.StatusBadGateway, map[string]string{
 			"error": fmt.Sprintf("Error normalizing the response: %s", err),
 		})
 		return
@@ -71,22 +91,6 @@ func (h *Handler) CreatePath(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if h.db != nil {
-			user, err := h.currentUserFromRequest(r)
-			if err != nil {
-				services.WriteJSON(w, http.StatusUnauthorized, map[string]string{
-					"error": "unauthorized",
-				})
-				return
-			}
-
-			userGoal, timeQuery, parseErr := extractRoadmapRequestFields(r.Header.Get("Content-Type"), requestBody)
-			if parseErr != nil {
-				services.WriteJSON(w, http.StatusInternalServerError, map[string]string{
-					"error": fmt.Sprintf("failed to parse roadmap request fields: %s", parseErr),
-				})
-				return
-			}
-
 			responsePayload, err := json.Marshal(pythonPayload)
 			if err != nil {
 				services.WriteJSON(w, http.StatusInternalServerError, map[string]string{
@@ -129,7 +133,11 @@ func (h *Handler) CreatePath(w http.ResponseWriter, r *http.Request) {
 	if errMessage == "" {
 		errMessage = "failed to process uploaded sources"
 	}
-	services.WriteJSON(w, http.StatusInternalServerError, map[string]string{
+	statusCode := pythonRes.StatusCode
+	if statusCode < 400 {
+		statusCode = http.StatusBadGateway
+	}
+	services.WriteJSON(w, statusCode, map[string]string{
 		"error": errMessage,
 	})
 }
