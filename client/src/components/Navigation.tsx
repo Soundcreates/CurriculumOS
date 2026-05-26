@@ -37,31 +37,37 @@ const Navigation: React.FC = () => {
       <div onClick={() => navigate('/')} className=" cursor-pointer text-xl font-serif font-medium tracking-wide">
         CurriculumOS
       </div>
-      {isAuthenticated && (
+
+      <div className="hidden md:flex gap-12 font-sans text-sm tracking-widest uppercase opacity-80">
+        {isAuthenticated ? (
+          <>
+            <Link
+              to="/dashboard"
+              className="hover:opacity-100 transition-opacity duration-300"
+            >
+              Dashboard
+            </Link>
+            <Link
+              to="/profile"
+              className="hover:opacity-100 transition-opacity duration-300"
+            >
+              Profile
+            </Link>
+
+          </>
+
+        ): (
         <>
           <Link
-            to="/dashboard"
+            to="/login"
             className="hover:opacity-100 transition-opacity duration-300"
           >
-            Dashboard
-          </Link>
-          <Link
-            to="/profile"
-            className="hover:opacity-100 transition-opacity duration-300"
-          >
-            Profile
+            Login
           </Link>
 
         </>
-
       )}
-      <div className="hidden md:flex gap-12 font-sans text-sm tracking-widest uppercase opacity-80">
-        <Link
-          to="/login"
-          className="hover:opacity-100 transition-opacity duration-300"
-        >
-          Login
-        </Link>
+
       </div>
       <div className="md:hidden">
         {/* Mobile Menu Icon Placeholder */}

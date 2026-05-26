@@ -1,6 +1,5 @@
 import {
   BrowserRouter as Router,
-  Navigate,
   Routes,
   Route,
   useLocation,
@@ -15,7 +14,8 @@ import { useEffect } from "react";
 import Lenis from "lenis";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { useAuth } from "./context/AuthContext";
+import { ProtectedRoutes } from "./context/ProtectedRoutes";
+import { PublicOnlyRoutes } from "./context/PublicOnlyRoutes";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -61,23 +61,22 @@ function SmoothScroll() {
 }
 
 function App() {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return null;
-  }
-
   return (
     <Router>
       <ScrollToTop />
       <SmoothScroll />
       <Routes>
-        <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Landing />} />
-        <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
-        <Route path="/signup" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Signup />} />
-        <Route path="/dashboard" element={isAuthenticated ? <Dashboard /> : <Navigate to="/" replace />} />
-        <Route path="/profile" element={isAuthenticated ? <Profile /> : <Navigate to="/" replace />} />
-        <Route path="/path/:id" element={isAuthenticated ? <SpecificPathView /> : <Navigate to="/" replace />} />
+        <Route element={<PublicOnlyRoutes />}>
+          <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+        </Route>
+
+        <Route element={<ProtectedRoutes />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/path/:id" element={<SpecificPathView />} />
+        </Route>
       </Routes>
     </Router>
   );
