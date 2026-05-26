@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.tsx';
+import { AuthProvider } from './context/AuthContext';
 
 import Lenis from 'lenis';
 import { useEffect } from 'react';
@@ -29,8 +30,10 @@ export function LenisProvider({ children }: { children: React.ReactNode }) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <LenisProvider>
-      <App />
-    </LenisProvider>
+    <AuthProvider>
+      <LenisProvider>
+        <App />
+      </LenisProvider>
+    </AuthProvider>
   </StrictMode>,
 );
