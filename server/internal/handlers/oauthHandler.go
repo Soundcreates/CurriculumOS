@@ -201,13 +201,13 @@ func validateOAuthState(r *http.Request, cfg *config.Config) bool {
 }
 
 func setCookie(w http.ResponseWriter, r *http.Request, name string, value string) {
-	_, secure := cookiePolicy(r)
+	sameSite, secure := cookiePolicy(r)
 	http.SetCookie(w, &http.Cookie{
 		Name:     name,
 		Value:    value,
 		Path:     "/",
 		HttpOnly: true,
-		SameSite: 0,
+		SameSite: sameSite,
 		Secure:   secure,
 	})
 }
@@ -237,16 +237,24 @@ func cookiePolicy(r *http.Request) (http.SameSite, bool) {
 		}
 	}
 
-	// If request is cross-site (Origin/Referer differs from API host), cookie must be SameSite=None.
+	// If request is cross-site (different site from API host), cookie must be SameSite=None
+	// on HTTPS. On plain HTTP (typically local dev), SameSite=None would be rejected because
+	// browsers require Secure for None, so we fall back to Lax.
 	requestBase := oauthRequestBaseURL(r)
 	if clientOrigin != "" {
 		if !sameSiteOrigin(clientOrigin, requestBase) {
-			return http.SameSiteNoneMode, true
+			if secure {
+				return http.SameSiteNoneMode, true
+			}
+			return http.SameSiteLaxMode, false
 		}
 	}
 	if clientReferer != "" {
 		if !sameSiteOrigin(clientReferer, requestBase) {
-			return http.SameSiteNoneMode, true
+			if secure {
+				return http.SameSiteNoneMode, true
+			}
+			return http.SameSiteLaxMode, false
 		}
 	}
 
@@ -259,7 +267,8 @@ func sameSiteOrigin(left, right string) bool {
 	if leftErr != nil || rightErr != nil {
 		return false
 	}
-	return strings.EqualFold(leftURL.Scheme, rightURL.Scheme) && strings.EqualFold(leftURL.Host, rightURL.Host)
+	// Same-site should not fail just because frontend/backend use different ports.
+	return strings.EqualFold(leftURL.Scheme, rightURL.Scheme) && strings.EqualFold(leftURL.Hostname(), rightURL.Hostname())
 }
 
 func readCookie(r *http.Request, name string) (string, error) {
