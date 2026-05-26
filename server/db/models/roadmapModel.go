@@ -15,5 +15,6 @@ type Roadmap struct {
 	ResponsePayload string    `gorm:"type:text" json:"responsePayload"`
 	DayProgress     string    `gorm:"type:text" json:"dayProgress"`
 	CreatedAt       time.Time `json:"createdAt"`
-	AuthorID        uint      `gorm:"not null;index" json:"authorId"`
+	// Nullable to allow safe AutoMigrate on existing tables that may already contain rows.
+	AuthorID        uint      `gorm:"index" json:"authorId"`
 }

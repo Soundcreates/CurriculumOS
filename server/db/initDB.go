@@ -8,17 +8,26 @@ import (
 	"gorm.io/gorm"
 )
 
-
 func InitDB(cfg *config.Config) (*gorm.DB, error) {
 	log.Println("Initializing database...")
 	database_url := cfg.DATABASE_URL
-	
-	db,err := gorm.Open(postgres.Open(database_url))
-	if err !=nil {
+
+	// Render deployments frequently sit behind pgBouncer. Using the simple protocol and
+	// disabling prepared statement caching avoids "prepared statement name is already in use" (08P01).
+	db, err := gorm.Open(
+		postgres.New(postgres.Config{
+			DSN:                  database_url,
+			PreferSimpleProtocol: true,
+		}),
+		&gorm.Config{
+			PrepareStmt: false,
+		},
+	)
+	if err != nil {
 		log.Print("Failed to connect to database:", err)
 		return nil, err
 	}
 
-	return db,nil
+	return db, nil
 
 }

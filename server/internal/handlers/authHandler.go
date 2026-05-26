@@ -124,7 +124,7 @@ func (h *Handler) ValidateSession(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.currentUserFromRequest(r)
 	if err != nil {
-		writeJSON(w, http.StatusUnauthorized, map[string]any{
+		writeJSON(w, http.StatusOK, map[string]any{
 			"valid": false,
 		})
 		return
@@ -132,7 +132,7 @@ func (h *Handler) ValidateSession(w http.ResponseWriter, r *http.Request) {
 
 	token, err := readCookie(r, authTokenCookie)
 	if err != nil {
-		writeJSON(w, http.StatusUnauthorized, map[string]any{
+		writeJSON(w, http.StatusOK, map[string]any{
 			"valid": false,
 		})
 		return
@@ -140,7 +140,7 @@ func (h *Handler) ValidateSession(w http.ResponseWriter, r *http.Request) {
 
 	claims, err := services.ParseAuthToken(h.cfg, token)
 	if err != nil {
-		writeJSON(w, http.StatusUnauthorized, map[string]any{
+		writeJSON(w, http.StatusOK, map[string]any{
 			"valid": false,
 		})
 		return
