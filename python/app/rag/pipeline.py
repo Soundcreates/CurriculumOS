@@ -1,22 +1,26 @@
-from langchain_core.documents import Document
-from app.rag.embeddings.vector_db import vector_db
-from app.rag.processors.chunker import chunk_documents
-from app.rag.llm import generate_roadmap_structured
-from app.rag.embeddings.reranker import deduplicate_documents, rerank_documents
-from pydantic import BaseModel, Field
 import json
+import os
+
+from langchain_core.documents import Document
+from pydantic import BaseModel, Field
+
+from app.rag.embeddings.vector_db import vector_db
+from app.rag.llm import generate_roadmap_structured
+from app.rag.processors.chunker import chunk_documents
 
 
 class RoadmapDay(BaseModel):
-   number: int = Field(..., ge=1, description="1-indexed day number")
-   topic: str = Field(..., min_length=1)
-   tasks: list[str] = Field(default_factory=list)
+    number: int = Field(..., ge=1, description="1-indexed day number")
+    topic: str = Field(..., min_length=1)
+    tasks: list[str] = Field(default_factory=list)
 
 
 class StructuredRoadmap(BaseModel):
-   days: list[RoadmapDay] = Field(default_factory=list)
+    days: list[RoadmapDay] = Field(default_factory=list)
+
+
 def build_retrieval_query(user_goal: str, time_query: str) -> str:
-   return f"""
+    return f"""
 Learning goal: {user_goal}
 Time available: {time_query}
 
@@ -25,7 +29,7 @@ practice tasks, and progression milestones.
 """.strip()
 
 
-def build_time_constrained_prompt(user_goal: str, time_query: str, context: str):
+def build_time_constrained_prompt(user_goal: str, time_query: str, context: str) -> str:
     return f"""
 You are an expert AI learning planner.
 
@@ -45,8 +49,8 @@ RETRIEVED KNOWLEDGE BASE:
 INSTRUCTIONS:
 
 1. Interpret the TIME CONSTRAINT strictly and convert it into a day-by-day plan.
-   - Example: "2 months" ≈ 60 days
-   - Example: "3 weeks" ≈ 21 days
+    - Example: "2 months" is about 60 days
+    - Example: "3 weeks" is about 21 days
 
 2. Create a COMPLETE roadmap covering the FULL duration.
 
@@ -55,7 +59,7 @@ INSTRUCTIONS:
    - Tasks (specific actionable steps like read/watch/build/practice)
 
 4. Ensure:
-   - Logical progression (beginner → intermediate → advanced)
+    - Logical progression (beginner -> intermediate -> advanced)
    - No repetition of topics
    - Balanced workload per day
    - Gradual increase in difficulty
@@ -88,67 +92,76 @@ IMPORTANT:
 
 
 def build_context(docs: list[Document]) -> str:
-   sections = []
+    sections = []
+    max_doc_chars = int(os.getenv("RAG_CONTEXT_DOC_CHARS", "1200"))
+    max_total_chars = int(os.getenv("RAG_CONTEXT_TOTAL_CHARS", "8000"))
+    current_total = 0
 
-   for i, doc in enumerate(docs, start=1):
-      metadata = doc.metadata or {}
-      source_label = (
-         metadata.get("title")
-         or metadata.get("filename")
-         or metadata.get("source")
-         or "document"
-      )
-      sections.append(
-         f"[Source {i}: {source_label}]\n{doc.page_content.strip()}"
-      )
+    for i, doc in enumerate(docs, start=1):
+        metadata = doc.metadata or {}
+        source_label = (
+            metadata.get("title")
+            or metadata.get("filename")
+            or metadata.get("source")
+            or "document"
+        )
+        content = doc.page_content.strip()
+        if max_doc_chars > 0:
+            content = content[:max_doc_chars]
 
-   return "\n\n".join(sections)
-    
+        entry = f"[Source {i}: {source_label}]\n{content}"
+        entry_len = len(entry)
+        if max_total_chars > 0 and current_total + entry_len > max_total_chars:
+            break
+
+        sections.append(entry)
+        current_total += entry_len
+
+    return "\n\n".join(sections)
+
 
 async def pipeline(
-   documents,
-   time_query,
-   user_goal,
-   processed_types: list[str],
-   llm=None,
+    documents,
+    time_query,
+    user_goal,
+    processed_types: list[str],
+    llm=None,
 ):
-   chunked_docs = chunk_documents(documents)
+    chunked_docs = chunk_documents(documents)
 
-   db = vector_db("paths")
-   db.add_documents(chunked_docs)
+    db = vector_db("paths")
+    db.add_documents(chunked_docs)
 
-   retrieval_query = build_retrieval_query(user_goal, time_query)
-   matched_docs = db.similarity_search(retrieval_query, k=6)
-   deduplicated_docs = deduplicate_documents(matched_docs)
-   reranked_docs = rerank_documents(retrieval_query, deduplicated_docs)
-   prompt_context = build_context(reranked_docs)
-   print("reranking of documents have been completed")
-   prompt = build_time_constrained_prompt(user_goal, time_query, prompt_context)
-   roadmap = generate_roadmap_structured(prompt, StructuredRoadmap, llm=llm)
+    retrieval_query = build_retrieval_query(user_goal, time_query)
+    matched_docs = db.similarity_search(retrieval_query, k=6)
+    prompt_context = build_context(matched_docs)
+    prompt = build_time_constrained_prompt(user_goal, time_query, prompt_context)
 
-   normalized_days = sorted(
-      roadmap.days,
-      key=lambda d: d.number,
-   )
+    roadmap = generate_roadmap_structured(prompt, StructuredRoadmap, llm=llm)
 
-   roadmap_payload = {
-      "days": [
-         {
-            "number": day.number,
-            "topic": day.topic.strip(),
-            "tasks": [task.strip() for task in day.tasks if task and task.strip()],
-         }
-         for day in normalized_days
-      ]
-   }
-   roadmap_content = json.dumps(roadmap_payload, ensure_ascii=False)
+    normalized_days = sorted(
+        roadmap.days,
+        key=lambda d: d.number,
+    )
 
-   return {
-      "success": True,
-      "message": "Roadmap generated successfully",
-      "roadmap": roadmap_content,
-      "user_goal": user_goal,
-      "time_query": time_query,
-      "processed_types": processed_types,
-      "documents_count": len(documents),
-   }
+    roadmap_payload = {
+        "days": [
+            {
+                "number": day.number,
+                "topic": day.topic.strip(),
+                "tasks": [task.strip() for task in day.tasks if task and task.strip()],
+            }
+            for day in normalized_days
+        ]
+    }
+    roadmap_content = json.dumps(roadmap_payload, ensure_ascii=False)
+
+    return {
+        "success": True,
+        "message": "Roadmap generated successfully",
+        "roadmap": roadmap_content,
+        "user_goal": user_goal,
+        "time_query": time_query,
+        "processed_types": processed_types,
+        "documents_count": len(documents),
+    }

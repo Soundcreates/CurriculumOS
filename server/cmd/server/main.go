@@ -33,6 +33,7 @@ func main() {
 
 	allowedOrigins := []string{
 		cfg.CLIENT_URL,
+		cfg.PYTHON_URL,
 	}
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins: allowedOrigins,

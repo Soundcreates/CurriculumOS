@@ -1,7 +1,11 @@
 import os
 
 from app.rag.embeddings.embeddor import get_embedding_function
-from app.rag.embeddings.reranker import deduplicate_documents, rerank_documents
+from app.rag.embeddings.reranker import (
+    deduplicate_documents,
+    rerank_documents,
+    reranker_enabled,
+)
 from chromadb.errors import InvalidArgumentError
 from langchain_core.documents import Document
 from langchain_chroma import Chroma
@@ -52,7 +56,7 @@ class vector_db:
                     raise
 
     def similarity_search(self, query, k: int = 5):
-        max_initial_k = int(os.getenv("RAG_MAX_INITIAL_K", "24"))
+        max_initial_k = int(os.getenv("RAG_MAX_INITIAL_K", "12"))
         initial_k = min(max(k * 3, 12), max_initial_k)
 
         search_results = self.collection.similarity_search_with_score(
@@ -73,6 +77,8 @@ class vector_db:
             )
 
         deduplicated_documents = deduplicate_documents(candidate_documents)
-        reranked_documents = rerank_documents(query, deduplicated_documents)
+        if reranker_enabled():
+            reranked_documents = rerank_documents(query, deduplicated_documents)
+            return reranked_documents[:k]
 
-        return reranked_documents[:k]
+        return deduplicated_documents[:k]

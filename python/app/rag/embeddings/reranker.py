@@ -9,7 +9,7 @@ from sentence_transformers import CrossEncoder
 
 from app.ml_models import ml_models
 
-RERANKER_MODEL_NAME = os.getenv("RERANKER_MODEL_NAME", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+RERANKER_MODEL_NAME = os.getenv("RERANKER_MODEL_NAME", "cross-encoder/ms-marco-MiniLM-L-2-v2")
 _WHITESPACE_RE = re.compile(r"\s+")
 
 
@@ -64,8 +64,8 @@ def rerank_documents(query: str, documents: list[Document]) -> list[Document]:
         if reranker is None:
             return documents
 
-        rerank_top_n = int(os.getenv("RERANK_TOP_N", "16"))
-        rerank_batch_size = int(os.getenv("RERANK_BATCH_SIZE", "8"))
+        rerank_top_n = int(os.getenv("RERANK_TOP_N", "8"))
+        rerank_batch_size = int(os.getenv("RERANK_BATCH_SIZE", "4"))
 
         candidates = documents[: max(1, rerank_top_n)]
         pairs = [[query, document.page_content] for document in candidates]
