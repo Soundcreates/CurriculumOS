@@ -437,12 +437,12 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose, refreshData })
                   <div className="flex flex-col gap-4">
                     <div className="space-y-2">
                       <label className="text-xs uppercase tracking-widest text-text-secondary">
-                        Playlist URL
+                        YouTube URL
                       </label>
                       <div className="relative">
                         <input
                           type="text"
-                          placeholder="https://youtube.com/playlist?list=..."
+                          placeholder="Single video: youtube.com/watch?v=... or playlist: youtube.com/playlist?list=..."
                           value={youtubeUrl}
                           onChange={(e) => {
                             setYoutubeUrl(e.target.value);
@@ -459,8 +459,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose, refreshData })
                     <div className="p-4 bg-white/5 rounded-lg border border-white/5 mt-4">
                       <p className="text-sm text-text-secondary">
                         <span className="text-white font-medium">Note:</span>{" "}
-                        We'll extract transcripts and structure them into a
-                        day-by-day plan.
+                        Paste a single video or playlist URL — we'll extract transcripts and structure them into a day-by-day plan.
                       </p>
                     </div>
                   </div>

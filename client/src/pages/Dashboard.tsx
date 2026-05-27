@@ -7,7 +7,7 @@ import AddCourseModal from "../components/AddCourseModal";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Plus } from "lucide-react";
-import { getAllPaths, type Roadmap } from "@/apis/pathApi";
+import { getAllPaths, getUserStats, type Roadmap, type UserStats } from "@/apis/pathApi";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -16,12 +16,14 @@ const Dashboard: React.FC = () => {
   const gridRef = useRef<HTMLDivElement>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [paths, setPaths] = useState<Array<Roadmap>>([]);
+  const [stats, setStats] = useState<UserStats | null>(null);
   const navigate = useNavigate();
 
   const handleFetchPaths = async () => {
-      const response = await getAllPaths();
-      setPaths(response as Array<Roadmap>);
-    };
+    const [roadmaps, userStats] = await Promise.all([getAllPaths(), getUserStats()]);
+    setPaths(roadmaps as Array<Roadmap>);
+    setStats(userStats);
+  };
  
   useEffect(() => {
    handleFetchPaths();
@@ -81,14 +83,14 @@ const Dashboard: React.FC = () => {
                 <span>Create New</span>
               </button>
               <div className="flex flex-col items-end">
-                <span className="text-2xl font-serif text-white">12</span>
+                <span className="text-2xl font-serif text-white">{stats?.completedPaths ?? 0}</span>
                 <span className="text-xs uppercase tracking-widest text-text-secondary">
                   Completed
                 </span>
               </div>
               <div className="w-px h-10 bg-white/10 mx-2"></div>
               <div className="flex flex-col items-end">
-                <span className="text-2xl font-serif text-white">4</span>
+                <span className="text-2xl font-serif text-white">{stats?.inProgressPaths ?? 0}</span>
                 <span className="text-xs uppercase tracking-widest text-text-secondary">
                   In Progress
                 </span>

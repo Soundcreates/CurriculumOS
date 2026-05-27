@@ -4,6 +4,7 @@ import contextlib
 from contextlib import asynccontextmanager
 
 from app.ml_models import ml_models
+from app.routes.enrich import enrich_router
 from app.routes.query import query_router
 from app.routes.quiz import quiz_router
 from app.routes.upload import upload_router
@@ -63,6 +64,7 @@ app.add_middleware(
 app.include_router(upload_router, prefix="/upload")
 app.include_router(query_router, prefix="/query")
 app.include_router(quiz_router, prefix="/quiz")
+app.include_router(enrich_router, prefix="/enrich")
 
 
 @app.get("/health")

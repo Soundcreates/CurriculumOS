@@ -34,6 +34,7 @@ func main() {
 	allowedOrigins := []string{
 		cfg.CLIENT_URL,
 		cfg.PYTHON_URL,
+		"http://localhost:5173",
 	}
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins: allowedOrigins,

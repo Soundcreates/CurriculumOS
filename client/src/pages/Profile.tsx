@@ -10,10 +10,6 @@ import {
   Cell,
   Pie,
   PieChart,
-  PolarAngleAxis,
-  PolarGrid,
-  Radar,
-  RadarChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -22,51 +18,13 @@ import {
 import Layout from "../components/Layout";
 import Navigation from "../components/Navigation";
 import { getCurrentUser, logout, type AuthUser } from "../apis/authApi";
+import { getUserStats, type UserStats } from "../apis/pathApi";
 
-const learningArc = [
-  { month: "Jan", focus: 22, completion: 12 },
-  { month: "Feb", focus: 31, completion: 18 },
-  { month: "Mar", focus: 37, completion: 24 },
-  { month: "Apr", focus: 45, completion: 29 },
-  { month: "May", focus: 54, completion: 35 },
-  { month: "Jun", focus: 61, completion: 42 },
-];
-
-const activePaths = [
-  { name: "Systems Thinking", progress: 82, hours: 14, cadence: "4 sessions/week" },
-  { name: "Cryptography", progress: 57, hours: 11, cadence: "2 deep dives/week" },
-  { name: "Game Theory", progress: 61, hours: 9, cadence: "3 sessions/week" },
-];
-
-const completedPaths = [
-  { name: "Mental Models", retention: 88, depth: 84 },
-  { name: "Design Patterns", retention: 80, depth: 91 },
-  { name: "Decision Science", retention: 77, depth: 79 },
-];
-
-const distribution = [
-  { name: "Active", value: 3, color: "#f1d6a8" },
-  { name: "Completed", value: 3, color: "#8cb6ff" },
-  { name: "Queued", value: 2, color: "#6d7785" },
-];
-
-const capabilityMap = [
-  { skill: "Strategy", score: 88 },
-  { skill: "Systems", score: 92 },
-  { skill: "Execution", score: 71 },
-  { skill: "Research", score: 84 },
-  { skill: "Retention", score: 76 },
-  { skill: "Synthesis", score: 90 },
-];
-
-const weeklyClosures = [
-  { label: "W1", completed: 3 },
-  { label: "W2", completed: 5 },
-  { label: "W3", completed: 4 },
-  { label: "W4", completed: 6 },
-  { label: "W5", completed: 8 },
-  { label: "W6", completed: 7 },
-];
+const DIST_COLORS: Record<string, string> = {
+  Active: "#f1d6a8",
+  Completed: "#8cb6ff",
+  Queued: "#6d7785",
+};
 
 const tooltipStyle = {
   backgroundColor: "rgba(15, 15, 15, 0.92)",
@@ -81,15 +39,20 @@ const Profile: React.FC = () => {
   const statsRef = useRef<HTMLDivElement>(null);
   const chartsRef = useRef<HTMLDivElement>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [stats, setStats] = useState<UserStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchData = async () => {
       try {
-        const response = await getCurrentUser();
-        setUser(response.data.user);
+        const [userRes, userStats] = await Promise.all([
+          getCurrentUser(),
+          getUserStats(),
+        ]);
+        setUser(userRes.data.user);
+        setStats(userStats);
       } catch {
         setErrorMessage("Profile data is unavailable until you sign in.");
       } finally {
@@ -97,7 +60,7 @@ const Profile: React.FC = () => {
       }
     };
 
-    fetchUser();
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -142,6 +105,36 @@ const Profile: React.FC = () => {
       ? `${user.firstName} ${user.lastName}`.trim()
       : "Curriculum Architect";
 
+  const completionRate = stats ? Math.round(stats.completionRate) : 0;
+
+  const distributionWithColors = (stats?.distribution ?? []).map((d) => ({
+    ...d,
+    color: DIST_COLORS[d.name] ?? "#6d7785",
+  }));
+
+  const statCards = [
+    {
+      label: "Active Paths",
+      value: String(stats?.inProgressPaths ?? 0),
+      note: "currently in progress",
+    },
+    {
+      label: "Completed Paths",
+      value: String(stats?.completedPaths ?? 0),
+      note: "paths finished",
+    },
+    {
+      label: "Total Paths",
+      value: String(stats?.totalPaths ?? 0),
+      note: "paths created",
+    },
+    {
+      label: "Completion Rate",
+      value: `${completionRate}%`,
+      note: "paths completed vs created",
+    },
+  ];
+
   return (
     <Layout>
       <Navigation />
@@ -171,10 +164,10 @@ const Profile: React.FC = () => {
                     Provider: {user?.provider ?? "guest"}
                   </div>
                   <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 font-sans text-xs uppercase tracking-[0.3em] text-[#efe6d6]">
-                    Active streak: 27 days
+                    Total paths: {stats?.totalPaths ?? 0}
                   </div>
                   <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 font-sans text-xs uppercase tracking-[0.3em] text-[#efe6d6]">
-                    Completion rate: 86%
+                    Completion rate: {completionRate}%
                   </div>
                 </div>
               </div>
@@ -195,7 +188,9 @@ const Profile: React.FC = () => {
                     </div>
                     <div className="flex items-center justify-between">
                       <span>Current focus</span>
-                      <span>Systems Thinking</span>
+                      <span className="max-w-[160px] truncate text-right">
+                        {stats?.currentFocus || "No active paths"}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -223,12 +218,7 @@ const Profile: React.FC = () => {
             ref={statsRef}
             className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4"
           >
-            {[
-              { label: "Active Paths", value: "03", note: "14 hrs logged this week" },
-              { label: "Completed Paths", value: "11", note: "3 closed this quarter" },
-              { label: "Deep Work Hours", value: "126", note: "up 18% month over month" },
-              { label: "Retention Score", value: "84%", note: "measured by revision cadence" },
-            ].map((item) => (
+            {statCards.map((item) => (
               <div
                 key={item.label}
                 className="rounded-[1.5rem] border border-white/8 bg-white/[0.04] p-6 backdrop-blur-sm"
@@ -258,19 +248,20 @@ const Profile: React.FC = () => {
             ref={chartsRef}
             className="mt-10 grid gap-6 xl:grid-cols-[1.25fr_0.75fr]"
           >
+            {/* Learning Momentum — monthly paths created vs completed */}
             <article className="rounded-[2rem] border border-white/8 bg-white/[0.04] p-6">
               <div className="flex items-end justify-between">
                 <div>
                   <p className="font-sans text-xs uppercase tracking-[0.35em] text-[#bba98d]">
                     Learning Momentum
                   </p>
-                  <h2 className="mt-3 text-3xl text-white">Focus and completion arc</h2>
+                  <h2 className="mt-3 text-3xl text-white">Paths created and completed</h2>
                 </div>
                 <p className="font-sans text-sm text-text-secondary">6 month view</p>
               </div>
               <div className="mt-8 h-[320px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={learningArc}>
+                  <AreaChart data={stats?.monthlyActivity ?? []}>
                     <defs>
                       <linearGradient id="focusGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#f1d6a8" stopOpacity={0.85} />
@@ -283,15 +274,16 @@ const Profile: React.FC = () => {
                     </defs>
                     <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
                     <XAxis dataKey="month" stroke="#978d7d" tickLine={false} axisLine={false} />
-                    <YAxis stroke="#978d7d" tickLine={false} axisLine={false} />
+                    <YAxis stroke="#978d7d" tickLine={false} axisLine={false} allowDecimals={false} />
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Area type="monotone" dataKey="focus" stroke="#f1d6a8" fill="url(#focusGradient)" strokeWidth={2.5} />
-                    <Area type="monotone" dataKey="completion" stroke="#84aefc" fill="url(#completionGradient)" strokeWidth={2.5} />
+                    <Area type="monotone" dataKey="focus" name="Created" stroke="#f1d6a8" fill="url(#focusGradient)" strokeWidth={2.5} />
+                    <Area type="monotone" dataKey="completion" name="Completed" stroke="#84aefc" fill="url(#completionGradient)" strokeWidth={2.5} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </article>
 
+            {/* Path Distribution */}
             <article className="rounded-[2rem] border border-white/8 bg-white/[0.04] p-6">
               <p className="font-sans text-xs uppercase tracking-[0.35em] text-[#bba98d]">
                 Path Distribution
@@ -301,14 +293,14 @@ const Profile: React.FC = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={distribution}
+                      data={distributionWithColors}
                       dataKey="value"
                       nameKey="name"
                       innerRadius={72}
                       outerRadius={108}
                       paddingAngle={4}
                     >
-                      {distribution.map((entry) => (
+                      {distributionWithColors.map((entry) => (
                         <Cell key={entry.name} fill={entry.color} />
                       ))}
                     </Pie>
@@ -317,7 +309,7 @@ const Profile: React.FC = () => {
                 </ResponsiveContainer>
               </div>
               <div className="space-y-3">
-                {distribution.map((entry) => (
+                {distributionWithColors.map((entry) => (
                   <div key={entry.name} className="flex items-center justify-between rounded-full border border-white/8 px-4 py-3 font-sans text-sm text-[#e8decd]">
                     <div className="flex items-center gap-3">
                       <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
@@ -329,6 +321,7 @@ const Profile: React.FC = () => {
               </div>
             </article>
 
+            {/* Active Paths */}
             <article className="rounded-[2rem] border border-white/8 bg-white/[0.04] p-6">
               <div className="flex items-end justify-between">
                 <div>
@@ -339,84 +332,88 @@ const Profile: React.FC = () => {
                 </div>
                 <p className="font-sans text-sm text-text-secondary">in progress now</p>
               </div>
-              <div className="mt-8 h-[320px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={activePaths} barCategoryGap={18}>
-                    <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
-                    <XAxis dataKey="name" stroke="#978d7d" tickLine={false} axisLine={false} />
-                    <YAxis stroke="#978d7d" tickLine={false} axisLine={false} />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Bar dataKey="progress" radius={[8, 8, 0, 0]} fill="#f1d6a8" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="mt-6 grid gap-4 md:grid-cols-3">
-                {activePaths.map((path) => (
-                  <div key={path.name} className="rounded-[1.4rem] border border-white/8 bg-black/15 p-4">
-                    <p className="text-xl text-white">{path.name}</p>
-                    <p className="mt-2 font-sans text-sm text-text-secondary">
-                      {path.hours} hrs logged
-                    </p>
-                    <p className="mt-1 font-sans text-sm text-[#d9c6a3]">{path.cadence}</p>
+              {(stats?.activePaths ?? []).length === 0 ? (
+                <div className="mt-8 flex h-[320px] items-center justify-center">
+                  <p className="font-sans text-sm text-text-secondary">No active paths yet</p>
+                </div>
+              ) : (
+                <>
+                  <div className="mt-8 h-[320px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={stats?.activePaths ?? []} barCategoryGap={18}>
+                        <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
+                        <XAxis dataKey="name" stroke="#978d7d" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                        <YAxis stroke="#978d7d" tickLine={false} axisLine={false} domain={[0, 100]} unit="%" />
+                        <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v}%`, "Progress"]} />
+                        <Bar dataKey="progress" radius={[8, 8, 0, 0]} fill="#f1d6a8" />
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
-                ))}
-              </div>
+                  <div className="mt-6 grid gap-4 md:grid-cols-3">
+                    {(stats?.activePaths ?? []).map((path) => (
+                      <div key={path.id} className="rounded-[1.4rem] border border-white/8 bg-black/15 p-4">
+                        <p className="text-xl text-white truncate">{path.name}</p>
+                        <p className="mt-2 font-sans text-sm text-text-secondary">
+                          {path.completedDays} of {path.totalDays} days done
+                        </p>
+                        <p className="mt-1 font-sans text-sm text-[#d9c6a3]">{path.progress}% complete</p>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </article>
 
+            {/* Completed Paths */}
             <article className="rounded-[2rem] border border-white/8 bg-white/[0.04] p-6">
               <p className="font-sans text-xs uppercase tracking-[0.35em] text-[#bba98d]">
                 Completed Paths
               </p>
-              <h2 className="mt-3 text-3xl text-white">Capability map</h2>
-              <div className="mt-8 h-[320px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart data={capabilityMap}>
-                    <PolarGrid stroke="rgba(255,255,255,0.08)" />
-                    <PolarAngleAxis dataKey="skill" tick={{ fill: "#ddd3c2", fontSize: 12 }} />
-                    <Radar dataKey="score" stroke="#84aefc" fill="#84aefc" fillOpacity={0.35} />
-                    <Tooltip contentStyle={tooltipStyle} />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="mt-6 space-y-3">
-                {completedPaths.map((path) => (
-                  <div key={path.name} className="rounded-[1.4rem] border border-white/8 bg-black/15 px-4 py-4 font-sans">
-                    <div className="flex items-center justify-between text-white">
-                      <span>{path.name}</span>
-                      <span>{path.depth}% depth</span>
-                    </div>
-                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/8">
-                      <div
-                        className="h-full rounded-full bg-[#84aefc]"
-                        style={{ width: `${path.retention}%` }}
-                      />
-                    </div>
-                    <p className="mt-2 text-sm text-text-secondary">
-                      {path.retention}% retention stability
-                    </p>
+              <h2 className="mt-3 text-3xl text-white">Finished arcs</h2>
+              <div className="mt-8 space-y-3">
+                {(stats?.completedList ?? []).length === 0 ? (
+                  <div className="flex h-[320px] items-center justify-center">
+                    <p className="font-sans text-sm text-text-secondary">No completed paths yet</p>
                   </div>
-                ))}
+                ) : (
+                  (stats?.completedList ?? []).map((path) => (
+                    <div key={path.id} className="rounded-[1.4rem] border border-white/8 bg-black/15 px-4 py-4 font-sans">
+                      <div className="flex items-center justify-between text-white">
+                        <span className="truncate max-w-[160px]">{path.name}</span>
+                        <span className="text-sm text-[#8cb6ff]">{path.totalDays} days</span>
+                      </div>
+                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/8">
+                        <div className="h-full w-full rounded-full bg-[#8cb6ff]" />
+                      </div>
+                      <p className="mt-2 text-sm text-text-secondary">
+                        All {path.totalDays} days completed
+                      </p>
+                    </div>
+                  ))
+                )}
               </div>
             </article>
 
+            {/* Weekly Closures */}
             <article className="rounded-[2rem] border border-white/8 bg-white/[0.04] p-6 xl:col-span-2">
               <div className="flex items-end justify-between">
                 <div>
                   <p className="font-sans text-xs uppercase tracking-[0.35em] text-[#bba98d]">
                     Completion Rhythm
                   </p>
-                  <h2 className="mt-3 text-3xl text-white">Recent weekly closures</h2>
+                  <h2 className="mt-3 text-3xl text-white">Weekly path activity</h2>
                 </div>
                 <p className="font-sans text-sm text-text-secondary">last 6 weeks</p>
               </div>
               <div className="mt-8 h-[320px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={weeklyClosures}>
+                  <BarChart data={stats?.weeklyClosures ?? []}>
                     <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
                     <XAxis dataKey="label" stroke="#978d7d" tickLine={false} axisLine={false} />
-                    <YAxis stroke="#978d7d" tickLine={false} axisLine={false} />
+                    <YAxis stroke="#978d7d" tickLine={false} axisLine={false} allowDecimals={false} />
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Bar dataKey="completed" radius={[10, 10, 0, 0]} fill="#b8d8a3" />
+                    <Bar dataKey="created" name="Created" radius={[10, 10, 0, 0]} fill="#f1d6a8" />
+                    <Bar dataKey="completed" name="Completed" radius={[10, 10, 0, 0]} fill="#b8d8a3" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

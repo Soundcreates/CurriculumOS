@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func (h *Handler) CreatePath(w http.ResponseWriter, r *http.Request) {
@@ -458,4 +459,384 @@ func extractInt(value any) int {
 	default:
 		return 0
 	}
+}
+
+// --- Task progress ---
+
+type taskProgressEntry struct {
+	DayLabel  string `json:"dayLabel"`
+	TaskIndex int    `json:"taskIndex"`
+	Completed bool   `json:"completed"`
+}
+
+func parseTaskProgress(raw string) []taskProgressEntry {
+	if strings.TrimSpace(raw) == "" {
+		return []taskProgressEntry{}
+	}
+	var result []taskProgressEntry
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		return []taskProgressEntry{}
+	}
+	return result
+}
+
+func (h *Handler) UpdateTaskProgress(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPatch {
+		services.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+
+	user, err := h.currentUserFromRequest(r)
+	if err != nil {
+		services.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+
+	var payload struct {
+		RoadmapID uint   `json:"roadmapId"`
+		DayLabel  string `json:"dayLabel"`
+		TaskIndex int    `json:"taskIndex"`
+		Completed bool   `json:"completed"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		services.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+
+	if payload.RoadmapID == 0 || strings.TrimSpace(payload.DayLabel) == "" {
+		services.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "roadmapId and dayLabel are required"})
+		return
+	}
+
+	var roadmap models.Roadmap
+	if err := h.db.Where("id = ? AND author_id = ?", payload.RoadmapID, user.ID).First(&roadmap).Error; err != nil {
+		services.WriteJSON(w, http.StatusNotFound, map[string]string{"error": "roadmap not found"})
+		return
+	}
+
+	progress := parseTaskProgress(roadmap.TaskProgress)
+	updated := false
+	for i := range progress {
+		if strings.EqualFold(progress[i].DayLabel, payload.DayLabel) && progress[i].TaskIndex == payload.TaskIndex {
+			progress[i].Completed = payload.Completed
+			updated = true
+			break
+		}
+	}
+	if !updated {
+		progress = append(progress, taskProgressEntry{
+			DayLabel:  payload.DayLabel,
+			TaskIndex: payload.TaskIndex,
+			Completed: payload.Completed,
+		})
+	}
+
+	serialized, err := json.Marshal(progress)
+	if err != nil {
+		services.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to serialize task progress"})
+		return
+	}
+
+	roadmap.TaskProgress = string(serialized)
+	if err := h.db.Save(&roadmap).Error; err != nil {
+		services.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save task progress"})
+		return
+	}
+
+	services.WriteJSON(w, http.StatusOK, map[string]any{
+		"success":      true,
+		"taskProgress": progress,
+	})
+}
+
+// --- Fetch resources (proxy to Python enrich service) ---
+
+func (h *Handler) FetchResources(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		services.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+
+	_, err := h.currentUserFromRequest(r)
+	if err != nil {
+		services.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		services.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "failed to read body"})
+		return
+	}
+
+	pythonReq, err := http.NewRequest(http.MethodPost, h.cfg.PYTHON_URL+"/enrich/resources", bytes.NewReader(body))
+	if err != nil {
+		services.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to build request"})
+		return
+	}
+	pythonReq.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(pythonReq)
+	if err != nil {
+		services.WriteJSON(w, http.StatusBadGateway, map[string]string{"error": "resource service unavailable"})
+		return
+	}
+	defer resp.Body.Close()
+
+	normalized, err := services.Normalize_response(resp)
+	if err != nil {
+		services.WriteJSON(w, http.StatusBadGateway, map[string]string{"error": "invalid resource service response"})
+		return
+	}
+
+	services.WriteJSON(w, resp.StatusCode, normalized)
+}
+
+// --- Stats types ---
+
+type pathStatsResponse struct {
+	TotalPaths      int              `json:"totalPaths"`
+	CompletedPaths  int              `json:"completedPaths"`
+	InProgressPaths int              `json:"inProgressPaths"`
+	QueuedPaths     int              `json:"queuedPaths"`
+	CompletionRate  float64          `json:"completionRate"`
+	ActivePaths     []activePathStat `json:"activePaths"`
+	CompletedList   []completedPath  `json:"completedList"`
+	Distribution    []distEntry      `json:"distribution"`
+	WeeklyClosures  []weekEntry      `json:"weeklyClosures"`
+	MonthlyActivity []monthEntry     `json:"monthlyActivity"`
+	CurrentFocus    string           `json:"currentFocus"`
+}
+
+type activePathStat struct {
+	ID            uint   `json:"id"`
+	Name          string `json:"name"`
+	Progress      int    `json:"progress"`
+	TotalDays     int    `json:"totalDays"`
+	CompletedDays int    `json:"completedDays"`
+}
+
+type completedPath struct {
+	ID        uint      `json:"id"`
+	Name      string    `json:"name"`
+	TotalDays int       `json:"totalDays"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type distEntry struct {
+	Name  string `json:"name"`
+	Value int    `json:"value"`
+}
+
+type weekEntry struct {
+	Label     string `json:"label"`
+	Completed int    `json:"completed"`
+	Created   int    `json:"created"`
+}
+
+type monthEntry struct {
+	Month      string `json:"month"`
+	Focus      int    `json:"focus"`
+	Completion int    `json:"completion"`
+}
+
+// --- Stats helpers ---
+
+func parseTotalDaysFromContent(content string) int {
+	if strings.TrimSpace(content) == "" {
+		return 0
+	}
+	var parsed struct {
+		Days []json.RawMessage `json:"days"`
+	}
+	if err := json.Unmarshal([]byte(content), &parsed); err != nil {
+		return 0
+	}
+	return len(parsed.Days)
+}
+
+func parseCompletedDaysCount(dayProgress string) int {
+	if strings.TrimSpace(dayProgress) == "" {
+		return 0
+	}
+	var entries []struct {
+		Completed bool `json:"completed"`
+	}
+	if err := json.Unmarshal([]byte(dayProgress), &entries); err != nil {
+		return 0
+	}
+	count := 0
+	for _, e := range entries {
+		if e.Completed {
+			count++
+		}
+	}
+	return count
+}
+
+// --- GetStats handler ---
+
+func (h *Handler) GetStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		services.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+
+	user, err := h.currentUserFromRequest(r)
+	if err != nil {
+		services.WriteJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+
+	var roadmaps []models.Roadmap
+	if err := h.db.Where("author_id = ?", user.ID).Order("created_at DESC").Find(&roadmaps).Error; err != nil {
+		services.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to retrieve roadmaps"})
+		return
+	}
+
+	type rmStatus struct {
+		total     int
+		completed int
+		kind      string
+	}
+
+	statusMap := make(map[uint]rmStatus, len(roadmaps))
+	for _, rm := range roadmaps {
+		total := parseTotalDaysFromContent(rm.RoadmapContent)
+		done := parseCompletedDaysCount(rm.DayProgress)
+		var kind string
+		switch {
+		case total == 0 || done == 0:
+			kind = "queued"
+		case done >= total:
+			kind = "completed"
+		default:
+			kind = "in_progress"
+		}
+		statusMap[rm.ID] = rmStatus{total, done, kind}
+	}
+
+	totalPaths := len(roadmaps)
+	var completedCount, inProgressCount, queuedCount int
+	for _, s := range statusMap {
+		switch s.kind {
+		case "completed":
+			completedCount++
+		case "in_progress":
+			inProgressCount++
+		default:
+			queuedCount++
+		}
+	}
+
+	var completionRate float64
+	if totalPaths > 0 {
+		completionRate = float64(completedCount) / float64(totalPaths) * 100
+	}
+
+	activePaths := make([]activePathStat, 0)
+	for _, rm := range roadmaps {
+		s := statusMap[rm.ID]
+		if s.kind != "in_progress" {
+			continue
+		}
+		progress := 0
+		if s.total > 0 {
+			progress = s.completed * 100 / s.total
+		}
+		activePaths = append(activePaths, activePathStat{
+			ID:            rm.ID,
+			Name:          rm.Name,
+			Progress:      progress,
+			TotalDays:     s.total,
+			CompletedDays: s.completed,
+		})
+	}
+
+	completedList := make([]completedPath, 0)
+	for _, rm := range roadmaps {
+		if statusMap[rm.ID].kind != "completed" {
+			continue
+		}
+		completedList = append(completedList, completedPath{
+			ID:        rm.ID,
+			Name:      rm.Name,
+			TotalDays: statusMap[rm.ID].total,
+			CreatedAt: rm.CreatedAt,
+		})
+	}
+
+	distribution := []distEntry{
+		{Name: "Active", Value: inProgressCount},
+		{Name: "Completed", Value: completedCount},
+		{Name: "Queued", Value: queuedCount},
+	}
+
+	now := time.Now()
+	weeklyClosures := make([]weekEntry, 6)
+	for i := 0; i < 6; i++ {
+		weekStart := now.AddDate(0, 0, -(6-i)*7)
+		weekEnd := now.AddDate(0, 0, -(5-i)*7)
+		var created, completed int
+		for _, rm := range roadmaps {
+			if !rm.CreatedAt.Before(weekStart) && rm.CreatedAt.Before(weekEnd) {
+				created++
+				if statusMap[rm.ID].kind == "completed" {
+					completed++
+				}
+			}
+		}
+		weeklyClosures[i] = weekEntry{
+			Label:     fmt.Sprintf("W%d", i+1),
+			Completed: completed,
+			Created:   created,
+		}
+	}
+
+	monthlyActivity := make([]monthEntry, 6)
+	for i := 0; i < 6; i++ {
+		t := now.AddDate(0, -(5-i), 0)
+		monthKey := t.Format("2006-01")
+		var created, completed int
+		for _, rm := range roadmaps {
+			if rm.CreatedAt.Format("2006-01") == monthKey {
+				created++
+				if statusMap[rm.ID].kind == "completed" {
+					completed++
+				}
+			}
+		}
+		monthlyActivity[i] = monthEntry{
+			Month:      t.Format("Jan"),
+			Focus:      created,
+			Completion: completed,
+		}
+	}
+
+	currentFocus := ""
+	for _, rm := range roadmaps {
+		if statusMap[rm.ID].kind == "in_progress" {
+			currentFocus = rm.Name
+			break
+		}
+	}
+
+	services.WriteJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"stats": pathStatsResponse{
+			TotalPaths:      totalPaths,
+			CompletedPaths:  completedCount,
+			InProgressPaths: inProgressCount,
+			QueuedPaths:     queuedCount,
+			CompletionRate:  completionRate,
+			ActivePaths:     activePaths,
+			CompletedList:   completedList,
+			Distribution:    distribution,
+			WeeklyClosures:  weeklyClosures,
+			MonthlyActivity: monthlyActivity,
+			CurrentFocus:    currentFocus,
+		},
+	})
 }
