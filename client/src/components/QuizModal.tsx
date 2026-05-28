@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
-import { X } from "lucide-react";
+import { X, CheckCircle, XCircle } from "lucide-react";
+import { submitQuiz } from "../apis/pathApi";
 
 export type QuizQuestion = {
   question: string;
@@ -20,7 +21,10 @@ type QuizModalProps = {
   onDifficultyTiersChange: (value: number) => void;
   onQuestionsPerTierChange: (value: number) => void;
   onGenerateQuiz: () => void;
+  roadmapId?: number;
 };
+
+type QuizState = "settings" | "taking" | "results";
 
 const QuizModal: React.FC<QuizModalProps> = ({
   isOpen,
@@ -33,12 +37,19 @@ const QuizModal: React.FC<QuizModalProps> = ({
   onDifficultyTiersChange,
   onQuestionsPerTierChange,
   onGenerateQuiz,
+  roadmapId,
 }) => {
   const overlayRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
+  const [quizState, setQuizState] = useState<QuizState>("settings");
+  const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
+  const [isSavingQuiz, setIsSavingQuiz] = useState(false);
+
   useEffect(() => {
     if (!isOpen) {
+      setQuizState("settings");
+      setUserAnswers({});
       return;
     }
 
@@ -71,8 +82,245 @@ const QuizModal: React.FC<QuizModalProps> = ({
     };
   }, [isOpen]);
 
+  const handleGenerateAndStart = () => {
+    onGenerateQuiz();
+    // Wait for questions to load and transition to taking state
+    setTimeout(() => {
+      if (questions.length > 0) {
+        setQuizState("taking");
+        setUserAnswers({});
+      }
+    }, 500);
+  };
+
+  const handleAnswerSelect = (questionIndex: number, selectedOption: string) => {
+    setUserAnswers((prev) => ({
+      ...prev,
+      [questionIndex]: selectedOption,
+    }));
+  };
+
+  const handleSubmitQuiz = async () => {
+    if (!roadmapId || questions.length === 0) {
+      setQuizState("results");
+      return;
+    }
+
+    setIsSavingQuiz(true);
+    try {
+      const correctCount = Object.entries(userAnswers).filter(
+        ([index, answer]) => questions[Number(index)]?.answer === answer,
+      ).length;
+
+      await submitQuiz({
+        roadmapId,
+        score: Math.round((correctCount / questions.length) * 100),
+        totalQuestions: questions.length,
+        correctAnswers: correctCount,
+        questions,
+        userAnswers,
+      });
+
+      setQuizState("results");
+    } catch (err) {
+      console.error("Failed to save quiz results:", err);
+      setQuizState("results");
+    } finally {
+      setIsSavingQuiz(false);
+    }
+  };
+
+  const handleRetake = () => {
+    setQuizState("settings");
+    setUserAnswers({});
+  };
+
+  const score = useMemo(() => {
+    if (questions.length === 0) return 0;
+    const correct = Object.entries(userAnswers).filter(
+      ([index, answer]) => questions[Number(index)]?.answer === answer,
+    ).length;
+    return Math.round((correct / questions.length) * 100);
+  }, [userAnswers, questions]);
+
+  const settingsContent = (
+    <div className="space-y-4">
+      <section className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+        <p className="font-sans text-xs uppercase tracking-[0.3em] text-[#d8bf92]">
+          Quiz Settings
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <label className="font-sans text-sm text-[#e6dece]">
+            Difficulty Tiers
+            <select
+              value={difficultyTiers}
+              onChange={(e) => onDifficultyTiersChange(Number(e.target.value))}
+              className="mt-2 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-white focus:outline-none"
+            >
+              {[1, 2, 3, 4].map((value) => (
+                <option key={`tier-${value}`} value={value} className="bg-[#141414]">
+                  {value}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="font-sans text-sm text-[#e6dece]">
+            Questions Per Tier
+            <select
+              value={questionsPerTier}
+              onChange={(e) => onQuestionsPerTierChange(Number(e.target.value))}
+              className="mt-2 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-white focus:outline-none"
+            >
+              {[6, 10, 15].map((value) => (
+                <option key={`qpt-${value}`} value={value} className="bg-[#141414]">
+                  {value}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <p className="mt-3 font-sans text-xs text-text-secondary">
+          Total questions: {difficultyTiers * questionsPerTier}
+        </p>
+        <button
+          onClick={handleGenerateAndStart}
+          disabled={isLoading}
+          className="mt-4 rounded-full bg-white px-5 py-2 font-sans text-xs uppercase tracking-[0.28em] text-black transition-colors hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isLoading ? "Generating..." : "Generate Quiz"}
+        </button>
+      </section>
+    </div>
+  );
+
+  const takingContent = (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between border-b border-white/10 pb-4">
+        <p className="font-sans text-sm text-text-secondary">
+          Progress: {Object.keys(userAnswers).length} / {questions.length} answered
+        </p>
+        <div className="h-2 w-32 overflow-hidden rounded-full bg-white/8">
+          <div
+            className="h-full bg-[#f1d6a8] transition-all"
+            style={{
+              width: `${questions.length > 0 ? (Object.keys(userAnswers).length / questions.length) * 100 : 0}%`,
+            }}
+          />
+        </div>
+      </div>
+
+      {questions.map((item, index) => (
+        <article key={`quiz-question-${index}`} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="font-sans text-xs uppercase tracking-[0.3em] text-[#d8bf92]">
+            Question {index + 1}
+          </p>
+          <h3 className="mt-2 text-lg text-white">{item.question}</h3>
+
+          <ul className="mt-4 space-y-2">
+            {item.options.map((option, optionIndex) => {
+              const isSelected = userAnswers[index] === option;
+              return (
+                <li key={`quiz-option-${index}-${optionIndex}`}>
+                  <button
+                    onClick={() => handleAnswerSelect(index, option)}
+                    className={`w-full rounded-lg border px-4 py-3 text-left font-sans text-sm transition-all ${
+                      isSelected
+                        ? "border-[#f1d6a8] bg-[#f1d6a8]/10 text-[#f1d6a8]"
+                        : "border-white/8 bg-black/20 text-[#e6dece] hover:border-white/15 hover:bg-white/5"
+                    }`}
+                  >
+                    {option}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </article>
+      ))}
+
+      <button
+        onClick={handleSubmitQuiz}
+        disabled={Object.keys(userAnswers).length !== questions.length || isSavingQuiz}
+        className="w-full rounded-full bg-white px-5 py-3 font-sans text-xs uppercase tracking-[0.28em] text-black transition-colors hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {isSavingQuiz ? "Saving..." : "Submit Quiz"}
+      </button>
+    </div>
+  );
+
+  const resultsContent = (
+    <div className="space-y-6">
+      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-6 text-center">
+        <p className="font-sans text-xs uppercase tracking-[0.3em] text-[#d8bf92]">Your Score</p>
+        <p className="mt-4 text-5xl font-serif text-white">{score}%</p>
+        <p className="mt-2 font-sans text-sm text-text-secondary">
+          {Object.entries(userAnswers).filter(([index, answer]) => questions[Number(index)]?.answer === answer)
+            .length}{" "}
+          out of {questions.length} correct
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {questions.map((item, index) => {
+          const userAnswer = userAnswers[index];
+          const isCorrect = userAnswer === item.answer;
+          return (
+            <article
+              key={`result-${index}`}
+              className={`rounded-xl border p-4 ${
+                isCorrect
+                  ? "border-[#8ecf9f]/30 bg-[#1a3328]/40"
+                  : "border-[#f3989e]/30 bg-[#3b1a1a]/40"
+              }`}
+            >
+              <div className="flex gap-3">
+                {isCorrect ? (
+                  <CheckCircle size={20} className="mt-1 shrink-0 text-[#8ecf9f]" />
+                ) : (
+                  <XCircle size={20} className="mt-1 shrink-0 text-[#f3989e]" />
+                )}
+                <div className="flex-1">
+                  <p className="font-sans text-xs uppercase tracking-[0.3em] text-[#d8bf92]">
+                    Question {index + 1} {isCorrect ? "Correct" : "Incorrect"}
+                  </p>
+                  <h3 className="mt-2 text-white">{item.question}</h3>
+
+                  <div className="mt-3 space-y-2">
+                    <div>
+                      <p className="font-sans text-xs text-text-secondary">Your answer:</p>
+                      <p className={`font-sans text-sm ${isCorrect ? "text-[#8ecf9f]" : "text-[#f3989e]"}`}>
+                        {userAnswer}
+                      </p>
+                    </div>
+                    {!isCorrect && (
+                      <div>
+                        <p className="font-sans text-xs text-text-secondary">Correct answer:</p>
+                        <p className="font-sans text-sm text-[#8ecf9f]">{item.answer}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {item.explanation && (
+                    <p className="mt-3 font-sans text-sm text-[#d6ccbb]">{item.explanation}</p>
+                  )}
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      <button
+        onClick={handleRetake}
+        className="w-full rounded-full bg-white px-5 py-3 font-sans text-xs uppercase tracking-[0.28em] text-black transition-colors hover:bg-white/90"
+      >
+        Generate New Quiz
+      </button>
+    </div>
+  );
+
   const content = useMemo(() => {
-    if (isLoading) {
+    if (isLoading && quizState === "settings") {
       return (
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 font-sans text-sm text-text-secondary">
           Generating quiz from your roadmap...
@@ -88,105 +336,20 @@ const QuizModal: React.FC<QuizModalProps> = ({
       );
     }
 
-    return (
-      <div className="space-y-4">
-        <section className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <p className="font-sans text-xs uppercase tracking-[0.3em] text-[#d8bf92]">
-            Quiz Settings
-          </p>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <label className="font-sans text-sm text-[#e6dece]">
-              Difficulty Tiers
-              <select
-                value={difficultyTiers}
-                onChange={(e) => onDifficultyTiersChange(Number(e.target.value))}
-                className="mt-2 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-white focus:outline-none"
-              >
-                {[1, 2, 3, 4].map((value) => (
-                  <option key={`tier-${value}`} value={value} className="bg-[#141414]">
-                    {value}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="font-sans text-sm text-[#e6dece]">
-              Questions Per Tier
-              <select
-                value={questionsPerTier}
-                onChange={(e) => onQuestionsPerTierChange(Number(e.target.value))}
-                className="mt-2 w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-white focus:outline-none"
-              >
-                {[6, 10, 15].map((value) => (
-                  <option key={`qpt-${value}`} value={value} className="bg-[#141414]">
-                    {value}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <p className="mt-3 font-sans text-xs text-text-secondary">
-            Total questions: {difficultyTiers * questionsPerTier}
-          </p>
-          <button
-            onClick={onGenerateQuiz}
-            disabled={isLoading}
-            className="mt-4 rounded-full bg-white px-5 py-2 font-sans text-xs uppercase tracking-[0.28em] text-black transition-colors hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isLoading ? "Generating..." : "Generate Quiz"}
-          </button>
-        </section>
+    if (quizState === "settings") {
+      return settingsContent;
+    }
 
-        {questions.length ? (
-          questions.map((item, index) => (
-            <article
-              key={`quiz-question-${index}`}
-              className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
-            >
-              <p className="font-sans text-xs uppercase tracking-[0.3em] text-[#d8bf92]">
-                Question {index + 1}
-              </p>
-              <h3 className="mt-2 text-xl text-white">{item.question}</h3>
+    if (quizState === "taking") {
+      return takingContent;
+    }
 
-              <ul className="mt-3 space-y-2">
-                {item.options.map((option, optionIndex) => (
-                  <li
-                    key={`quiz-option-${index}-${optionIndex}`}
-                    className="rounded-lg border border-white/8 bg-black/20 px-3 py-2 font-sans text-sm text-[#e6dece]"
-                  >
-                    {option}
-                  </li>
-                ))}
-              </ul>
+    if (quizState === "results") {
+      return resultsContent;
+    }
 
-              <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 font-sans text-sm text-[#d6ccbb]">
-                <span className="uppercase tracking-[0.2em] text-xs text-[#bba98d]">Answer:</span>{" "}
-                {item.answer}
-              </div>
-
-              {item.explanation ? (
-                <p className="mt-2 font-sans text-sm text-text-secondary">
-                  {item.explanation}
-                </p>
-              ) : null}
-            </article>
-          ))
-        ) : (
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 font-sans text-sm text-text-secondary">
-            Choose quiz settings and click Generate Quiz.
-          </div>
-        )}
-      </div>
-    );
-  }, [
-    difficultyTiers,
-    errorMessage,
-    isLoading,
-    onDifficultyTiersChange,
-    onGenerateQuiz,
-    onQuestionsPerTierChange,
-    questions,
-    questionsPerTier,
-  ]);
+    return null;
+  }, [quizState, isLoading, errorMessage, difficultyTiers, questionsPerTier, questions, userAnswers, score]);
 
   if (!isOpen) {
     return null;
@@ -206,9 +369,11 @@ const QuizModal: React.FC<QuizModalProps> = ({
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <p className="font-sans text-xs uppercase tracking-[0.35em] text-[#d8bf92]">
-              Quiz Generator
+              {quizState === "results" ? "Quiz Results" : "Quiz Generator"}
             </p>
-            <h2 className="mt-2 text-3xl text-white">Roadmap Quiz</h2>
+            <h2 className="mt-2 text-3xl text-white">
+              {quizState === "results" ? "Review Your Answers" : "Roadmap Quiz"}
+            </h2>
           </div>
           <button
             onClick={onClose}

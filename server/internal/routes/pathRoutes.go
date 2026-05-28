@@ -17,5 +17,7 @@ func RegisterPathRoutes(router *http.ServeMux, handler *handlers.Handler) {
 	pathRouter.HandleFunc("/task-progress", handler.UpdateTaskProgress)
 	pathRouter.HandleFunc("/resources", handler.FetchResources)
 	pathRouter.HandleFunc("/generate-quiz", handler.GenerateQuiz)
+	pathRouter.HandleFunc("/quiz-submission", handler.SubmitQuiz)
+	pathRouter.HandleFunc("/quiz-results", handler.GetQuizResults)
 
 }

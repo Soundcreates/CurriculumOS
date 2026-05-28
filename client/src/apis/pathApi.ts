@@ -60,6 +60,43 @@ export type GenerateQuizResponse = {
   quiz: string;
 };
 
+export type QuizSubmissionPayload = {
+  roadmapId: number;
+  score: number;
+  totalQuestions: number;
+  correctAnswers: number;
+  questions: QuizQuestion[];
+  userAnswers: Record<number, string>;
+};
+
+export type SubmitQuizResponse = {
+  success: boolean;
+  message: string;
+  result: {
+    id: number;
+    score: number;
+    correctAnswers: number;
+    totalQuestions: number;
+    createdAt: string;
+  };
+};
+
+export type QuizResultItem = {
+  id: number;
+  roadmapId: number;
+  score: number;
+  correctAnswers: number;
+  totalQuestions: number;
+  questions: QuizQuestion[];
+  userAnswers: Record<number, string>;
+  createdAt: string;
+};
+
+export type GetQuizResultsResponse = {
+  success: boolean;
+  results: QuizResultItem[];
+};
+
 export type TaskProgressEntry = {
   dayLabel: string;
   taskIndex: number;
@@ -224,4 +261,22 @@ export async function generateQuiz(
     difficultyTiers,
     questionsPerTier,
   });
+}
+
+export async function submitQuiz(payload: QuizSubmissionPayload) {
+  return api.post<SubmitQuizResponse>("/path/quiz-submission", payload);
+}
+
+export async function getQuizResults(roadmapId: number) {
+  try {
+    const response = await api.get<GetQuizResultsResponse>("/path/quiz-results", {
+      params: { roadmapId },
+    });
+    if (response.data.success) {
+      return response.data.results;
+    }
+    return [];
+  } catch {
+    return [];
+  }
 }

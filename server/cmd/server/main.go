@@ -26,7 +26,7 @@ func main() {
 		log.Fatal("Failed to initialize database:", err)
 	}
 
-	db.AutoMigrate(models.User{}, models.Roadmap{})
+	db.AutoMigrate(models.User{}, models.Roadmap{}, models.QuizResult{})
 	handler := handlers.NewHandler(db, cfg)
 
 	mux := routes.RegisterRoutes(handler)

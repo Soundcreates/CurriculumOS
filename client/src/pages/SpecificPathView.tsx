@@ -473,6 +473,7 @@ const SpecificPathView: React.FC = () => {
         onDifficultyTiersChange={setDifficultyTiers}
         onQuestionsPerTierChange={setQuestionsPerTier}
         onGenerateQuiz={handleGenerateQuiz}
+        roadmapId={path?.id}
       />
 
       <div className="min-h-screen px-6 pb-24 pt-28 md:px-10">

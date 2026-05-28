@@ -840,3 +840,169 @@ func (h *Handler) GetStats(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 }
+
+func (h *Handler) SubmitQuiz(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		services.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{
+			"error": "method not allowed",
+		})
+		return
+	}
+
+	user, err := h.currentUserFromRequest(r)
+	if err != nil {
+		services.WriteJSON(w, http.StatusUnauthorized, map[string]string{
+			"error": "unauthorized",
+		})
+		return
+	}
+
+	var payload struct {
+		RoadmapID       uint                   `json:"roadmapId"`
+		Score           int                    `json:"score"`
+		TotalQuestions  int                    `json:"totalQuestions"`
+		CorrectAnswers  int                    `json:"correctAnswers"`
+		Questions       []map[string]any       `json:"questions"`
+		UserAnswers     map[string]string      `json:"userAnswers"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		services.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "invalid request body",
+		})
+		return
+	}
+
+	var roadmap models.Roadmap
+	if err := h.db.Where("id = ? AND author_id = ?", payload.RoadmapID, user.ID).First(&roadmap).Error; err != nil {
+		services.WriteJSON(w, http.StatusNotFound, map[string]string{
+			"error": "roadmap not found",
+		})
+		return
+	}
+
+	quizDataJSON, err := json.Marshal(payload.Questions)
+	if err != nil {
+		services.WriteJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "failed to serialize quiz data",
+		})
+		return
+	}
+
+	userAnswersJSON, err := json.Marshal(payload.UserAnswers)
+	if err != nil {
+		services.WriteJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "failed to serialize user answers",
+		})
+		return
+	}
+
+	quizResult := models.QuizResult{
+		RoadmapID:      payload.RoadmapID,
+		AuthorID:       user.ID,
+		Score:          payload.Score,
+		TotalQuestions: payload.TotalQuestions,
+		CorrectAnswers: payload.CorrectAnswers,
+		QuizData:       string(quizDataJSON),
+		UserAnswers:    string(userAnswersJSON),
+	}
+
+	if err := h.db.Create(&quizResult).Error; err != nil {
+		services.WriteJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": fmt.Sprintf("failed to save quiz result: %s", err),
+		})
+		return
+	}
+
+	services.WriteJSON(w, http.StatusCreated, map[string]any{
+		"success": true,
+		"message": "quiz result saved successfully",
+		"result": map[string]any{
+			"id":             quizResult.ID,
+			"score":          quizResult.Score,
+			"correctAnswers": quizResult.CorrectAnswers,
+			"totalQuestions": quizResult.TotalQuestions,
+			"createdAt":      quizResult.CreatedAt,
+		},
+	})
+}
+
+func (h *Handler) GetQuizResults(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		services.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{
+			"error": "method not allowed",
+		})
+		return
+	}
+
+	user, err := h.currentUserFromRequest(r)
+	if err != nil {
+		services.WriteJSON(w, http.StatusUnauthorized, map[string]string{
+			"error": "unauthorized",
+		})
+		return
+	}
+
+	roadmapIDStr := r.URL.Query().Get("roadmapId")
+	if roadmapIDStr == "" {
+		services.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "roadmapId query parameter is required",
+		})
+		return
+	}
+
+	roadmapID, err := strconv.ParseUint(roadmapIDStr, 10, 32)
+	if err != nil {
+		services.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "invalid roadmapId",
+		})
+		return
+	}
+
+	var roadmap models.Roadmap
+	if err := h.db.Where("id = ? AND author_id = ?", uint(roadmapID), user.ID).First(&roadmap).Error; err != nil {
+		services.WriteJSON(w, http.StatusNotFound, map[string]string{
+			"error": "roadmap not found",
+		})
+		return
+	}
+
+	var quizResults []models.QuizResult
+	if err := h.db.Where("roadmap_id = ? AND author_id = ?", roadmap.ID, user.ID).
+		Order("created_at DESC").
+		Find(&quizResults).Error; err != nil {
+		services.WriteJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": fmt.Sprintf("failed to retrieve quiz results: %s", err),
+		})
+		return
+	}
+
+	results := make([]map[string]any, 0, len(quizResults))
+	for _, qr := range quizResults {
+		var questions []map[string]any
+		if err := json.Unmarshal([]byte(qr.QuizData), &questions); err != nil {
+			questions = []map[string]any{}
+		}
+
+		var userAnswers map[string]string
+		if err := json.Unmarshal([]byte(qr.UserAnswers), &userAnswers); err != nil {
+			userAnswers = make(map[string]string)
+		}
+
+		results = append(results, map[string]any{
+			"id":             qr.ID,
+			"roadmapId":      qr.RoadmapID,
+			"score":          qr.Score,
+			"correctAnswers": qr.CorrectAnswers,
+			"totalQuestions": qr.TotalQuestions,
+			"questions":      questions,
+			"userAnswers":    userAnswers,
+			"createdAt":      qr.CreatedAt,
+		})
+	}
+
+	services.WriteJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"results": results,
+	})
+}

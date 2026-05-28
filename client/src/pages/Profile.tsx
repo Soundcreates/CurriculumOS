@@ -94,7 +94,7 @@ const Profile: React.FC = () => {
     setIsLoggingOut(true);
     try {
       await logout();
-      navigate("/login");
+      navigate("/");
     } finally {
       setIsLoggingOut(false);
     }
