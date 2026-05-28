@@ -60,7 +60,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: python-service
+        working-directory: python
 
     steps:
       - name: Checkout Code
