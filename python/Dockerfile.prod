@@ -15,5 +15,4 @@ CMD ["sh", "-c", "uvicorn app.app:app \
     --workers 1 \
     --limit-concurrency 3 \
     --timeout-keep-alive 5 \
-    --max-requests 500 \
-    --max-requests-jitter 50"]
+    --limit-max-requests 500 "]
