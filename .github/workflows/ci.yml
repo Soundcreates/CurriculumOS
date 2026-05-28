@@ -1,0 +1,75 @@
+
+name: PR Validation Pipeline
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+
+  client:
+    name: Validate Client
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: client
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Build
+        run: npm run build
+
+  go-server:
+    name: Validate Go Server
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: server
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.20'
+
+      - name: Run Tests
+        run: go test -v ./...
+
+      - name: Run Build
+        run: go build -o server main.go
+
+  python-service:
+    name: Validate Python Service
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: python-service
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: pip install -r requirements.txt
