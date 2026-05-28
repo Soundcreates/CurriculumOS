@@ -33,3 +33,4 @@ sqlalchemy==2.0.41
 asyncpg==0.30.0
 
 python-dateutil==2.9.0.post0
+duckduckgo-search==8.0.1
