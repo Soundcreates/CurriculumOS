@@ -31,12 +31,19 @@ db_url = os.getenv("DATABASE_URL")
 if not db_url:
     raise RuntimeError("DATABASE_URL is not set")
 
-engine = create_async_engine(normalize_database_url(db_url), echo=True)
+engine = create_async_engine(
+    normalize_database_url(db_url),
+    echo=False,
+    pool_size=2,
+    max_overflow=0,
+    pool_pre_ping=True,
+    pool_recycle=300,
+)
 
 SessionLocal = sessionmaker(
     bind=engine,
     class_=AsyncSession,
-    expire_on_commit=False
+    expire_on_commit=False,
 )
 
 

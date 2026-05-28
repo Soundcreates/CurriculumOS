@@ -111,11 +111,14 @@ Do NOT include "Unknown Title" or placeholder names."""
 
 # ── Agent 2: Web enrichment ───────────────────────────────────────────────────
 
+_MAX_HTML_BYTES = 256 * 1024  # 256 KB cap before BS4 parsing
+
+
 def _fetch_topic_content(topic: str, user_goal: str) -> str:
     """
-    Search DuckDuckGo for the topic, then fetch and parse the top pages
-    using BeautifulSoup to extract real learning content.
-    Returns a formatted text section for that topic.
+    Search DuckDuckGo for the topic and return snippet-only content.
+    Page fetching is kept very lean: responses are streamed and capped at
+    _MAX_HTML_BYTES before BS4 parsing to avoid large in-memory HTML trees.
     """
     try:
         import requests
@@ -124,45 +127,47 @@ def _fetch_topic_content(topic: str, user_goal: str) -> str:
 
         query = f"{topic} {user_goal} learn tutorial guide"
         with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=3)) or []
+            results = list(ddgs.text(query, max_results=2)) or []
 
         parts = [f"[Web — {topic}]"]
 
-        for r in results[:2]:
+        for r in results[:1]:
             url = r.get("href", "")
             title = r.get("title", "Untitled")
-            snippet = (r.get("body") or "")[:350]
+            snippet = (r.get("body") or "")[:400]
 
             if not url:
                 parts.append(f"• {title}: {snippet}")
                 continue
 
-            # Fetch and parse the actual page
             try:
-                resp = requests.get(
+                with requests.get(
                     url,
-                    timeout=6,
+                    timeout=5,
                     headers={"User-Agent": "Mozilla/5.0 (compatible; CurriculumOS/1.0)"},
                     allow_redirects=True,
-                )
-                ctype = resp.headers.get("content-type", "")
-                if resp.ok and "text/html" in ctype:
-                    soup = BeautifulSoup(resp.text, "html.parser")
-                    for noise in soup(
-                        ["script", "style", "nav", "header", "footer", "aside", "form"]
-                    ):
-                        noise.decompose()
-                    main = (
-                        soup.find("main")
-                        or soup.find("article")
-                        or soup.find("div", {"role": "main"})
-                        or soup.find("body")
-                    )
-                    raw = main.get_text(separator=" ") if main else ""
-                    page_text = " ".join(raw.split())[:800]
-                    parts.append(f"• {title}\n  {page_text or snippet}")
-                else:
-                    parts.append(f"• {title}: {snippet}")
+                    stream=True,
+                ) as resp:
+                    ctype = resp.headers.get("content-type", "")
+                    if resp.ok and "text/html" in ctype:
+                        raw_html = resp.raw.read(_MAX_HTML_BYTES, decode_content=True).decode(
+                            "utf-8", errors="replace"
+                        )
+                        soup = BeautifulSoup(raw_html, "html.parser")
+                        for noise in soup(["script", "style", "nav", "header", "footer", "aside", "form"]):
+                            noise.decompose()
+                        main = (
+                            soup.find("main")
+                            or soup.find("article")
+                            or soup.find("div", {"role": "main"})
+                            or soup.find("body")
+                        )
+                        raw_text = main.get_text(separator=" ") if main else ""
+                        page_text = " ".join(raw_text.split())[:600]
+                        del soup, raw_html, raw_text
+                        parts.append(f"• {title}\n  {page_text or snippet}")
+                    else:
+                        parts.append(f"• {title}: {snippet}")
             except Exception:
                 parts.append(f"• {title}: {snippet}")
 
@@ -175,19 +180,19 @@ def _fetch_topic_content(topic: str, user_goal: str) -> str:
 
 def enrich_with_web_content(topics: list[str], user_goal: str) -> str:
     """
-    Runs web fetching for each topic concurrently and returns a combined
-    supplementary content block.
+    Fetches web content for topics sequentially (not concurrently) to keep
+    peak memory low on constrained instances.
     """
     if not topics:
         return ""
 
     sections: list[str] = []
-    with ThreadPoolExecutor(max_workers=3) as executor:
+    with ThreadPoolExecutor(max_workers=1) as executor:
         futures = {
             executor.submit(_fetch_topic_content, topic, user_goal): topic
-            for topic in topics[:5]
+            for topic in topics[:3]
         }
-        for future in as_completed(futures, timeout=35):
+        for future in as_completed(futures, timeout=20):
             try:
                 text = future.result()
                 if text:

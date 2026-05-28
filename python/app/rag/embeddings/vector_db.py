@@ -56,8 +56,8 @@ class vector_db:
                     raise
 
     def similarity_search(self, query, k: int = 5):
-        max_initial_k = int(os.getenv("RAG_MAX_INITIAL_K", "12"))
-        initial_k = min(max(k * 3, 12), max_initial_k)
+        max_initial_k = int(os.getenv("RAG_MAX_INITIAL_K", "8"))
+        initial_k = min(max(k * 2, 6), max_initial_k)
 
         search_results = self.collection.similarity_search_with_score(
             query, k=initial_k

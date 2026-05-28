@@ -6,7 +6,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 def chunk_documents(documents):
   chunk_size = int(os.getenv("RAG_CHUNK_SIZE", "350"))
   chunk_overlap = int(os.getenv("RAG_CHUNK_OVERLAP", "40"))
-  max_chunks = int(os.getenv("RAG_MAX_CHUNKS", "120"))
+  max_chunks = int(os.getenv("RAG_MAX_CHUNKS", "60"))
 
   chunker = RecursiveCharacterTextSplitter(
     chunk_size=chunk_size,

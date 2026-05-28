@@ -12,12 +12,9 @@ langchain-ollama==1.0.0
 chromadb==1.0.20
 groq==0.31.0
 
-sentence-transformers==5.1.0
 numpy==2.3.2
 
 pypdf==6.0.0
-PyPDF2==3.0.1
-pdfplumber==0.11.7
 
 python-docx==1.2.0
 python-pptx==1.0.2
