@@ -7,23 +7,20 @@ import (
 	"curriculumOs/internal/handlers"
 	"curriculumOs/internal/routes"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/rs/cors"
 )
 
 func main() {
-	fmt.Println("Hello world")
-
 	cfg, err := config.InitConfig()
 	if err != nil {
-		log.Fatal("Failed to initialize configuration:", err)
+		panic(err)
 	}
 
 	db, err := db.InitDB(cfg)
 	if err != nil {
-		log.Fatal("Failed to initialize database:", err)
+		panic(err)
 	}
 
 	db.AutoMigrate(models.User{}, models.Roadmap{}, models.QuizResult{})
@@ -48,11 +45,10 @@ func main() {
 	})
 
 	handler2 := corsHandler.Handler(mux)
-	log.Printf("Starting server on port %s", cfg.PORT)
 	addr := fmt.Sprintf(":%s", cfg.PORT)
 
 	err = http.ListenAndServe(addr, handler2)
 	if err != nil {
-		log.Fatalf("Server failed to start: %v", err)
+		panic(err)
 	}
 }

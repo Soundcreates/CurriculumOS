@@ -197,12 +197,10 @@ export async function getAllPaths(): Promise<Roadmap[]> {
     const response = await api.get<GetAllPathsResponse>("/path/getPaths");
 
     if (response.data.success) {
-      console.log("no of roadmaps: ", response.data.roadmaps.length);
       return response.data.roadmaps;
     }
     return [];
   } catch (err) {
-    console.log("Error happened while calling getAllPaths api: ", err);
     return [];
   }
 }

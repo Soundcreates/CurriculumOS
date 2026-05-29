@@ -35,7 +35,7 @@ def _search_topic(topic: str, user_goal: str) -> tuple[str, list[dict]]:
                             "description": r.get("description", ""),
                         })
             except Exception as e:
-                print(f"[enrich] DDG video search failed for '{search_query}': {e}")
+                pass
 
             try:
                 for r in ddgs.text(
@@ -50,12 +50,12 @@ def _search_topic(topic: str, user_goal: str) -> tuple[str, list[dict]]:
                             "description": (r.get("body") or "")[:200],
                         })
             except Exception as e:
-                print(f"[enrich] DDG text search failed for '{search_query}': {e}")
+                pass
 
     except ImportError:
-        print("[enrich] duckduckgo_search not installed — returning empty resources")
+        pass
     except Exception as e:
-        print(f"[enrich] Unexpected error for '{search_query}': {e}")
+        pass
 
     return topic.strip(), resources
 
@@ -79,7 +79,6 @@ async def fetch_resources(payload: ResourceRequest):
                 results[topic_key] = resources
             except Exception as e:
                 original_topic = futures[future]
-                print(f"[enrich] Future failed for '{original_topic}': {e}")
                 results[original_topic] = []
 
     return {"success": True, "resources": results}

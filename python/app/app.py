@@ -14,10 +14,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
-print(f"Chroma API Key: {os.getenv('CHROMA_API_KEY')}")
-print(f"Chroma Tenant: {os.getenv('CHROMA_TENANT')}")
-print(f"Chroma Database: {os.getenv('CHROMA_DATABASE')}")
-
 
 async def _load_ml_models() -> None:
     try:

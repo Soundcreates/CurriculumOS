@@ -171,7 +171,6 @@ const QuizModal: React.FC<QuizModalProps> = ({
 
       setQuizState("results");
     } catch (err) {
-      console.error("Failed to save quiz results:", err);
       setQuizState("results");
     } finally {
       setIsSavingQuiz(false);

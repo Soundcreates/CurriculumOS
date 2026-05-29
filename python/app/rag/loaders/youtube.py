@@ -35,10 +35,8 @@ def load_youtube_video(url: str) -> list[Document]:
     try:
         transcript = api.fetch(video_id, languages=["en"])
     except (TranscriptsDisabled, NoTranscriptFound):
-        print(f"No transcript available for video: {url}")
         return []
     except Exception as e:
-        print(f"Error fetching transcript: {e}")
         return []
 
     documents = []
@@ -76,7 +74,6 @@ def load_youtube_playlist(url: str) -> list[Document]:
 
     for idx, vid_url in enumerate(video_urls):
         try:
-            print(f"Processing video {idx+1}/{len(video_urls)}: {vid_url}")
             vid_docs = load_youtube_video(vid_url)
 
             for doc in vid_docs:
@@ -85,7 +82,7 @@ def load_youtube_playlist(url: str) -> list[Document]:
 
             all_docs.extend(vid_docs)
         except Exception as e:
-            print(f"Error processing video {vid_url}: {e}")
+            pass
 
     return all_docs
 
@@ -97,7 +94,7 @@ def _get_playlist_video_urls(url: str) -> list[str]:
         if urls:
             return urls
     except Exception as e:
-        print(f"pytube playlist parsing failed: {e}")
+        pass
 
     playlist_id = _extract_playlist_id(url)
     if not playlist_id:

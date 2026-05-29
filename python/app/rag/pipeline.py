@@ -102,10 +102,8 @@ Do NOT include "Unknown Title" or placeholder names."""
             t for t in topics
             if "unknown" not in t.lower() and "untitled" not in t.lower()
         ]
-        print(f"[pipeline] Extracted topics: {topics}")
         return topics[:8]
     except Exception as exc:
-        print(f"[pipeline] Topic extraction failed: {exc}")
         return []
 
 
@@ -174,7 +172,6 @@ def _fetch_topic_content(topic: str, user_goal: str) -> str:
         return "\n".join(parts)
 
     except Exception as exc:
-        print(f"[pipeline] Web fetch failed for '{topic}': {exc}")
         return ""
 
 
@@ -198,7 +195,7 @@ def enrich_with_web_content(topics: list[str], user_goal: str) -> str:
                 if text:
                     sections.append(text)
             except Exception as exc:
-                print(f"[pipeline] Web enrichment timeout: {exc}")
+                pass
 
     return "\n\n".join(sections)
 
@@ -294,7 +291,6 @@ async def pipeline(
 
     # ── Step 3: Understanding agent ───────────────────────────────────────────
     # Reads retrieved docs and extracts the core curriculum topics
-    print("[pipeline] Running understanding agent...")
     topics = extract_curriculum_topics(retrieved_context, user_goal, time_query, llm)
 
     # ── Step 4: Web enrichment ────────────────────────────────────────────────
@@ -302,12 +298,9 @@ async def pipeline(
     # for each topic to supplement the uploaded materials
     web_context = ""
     if topics:
-        print(f"[pipeline] Fetching web content for {len(topics)} topics...")
         web_context = enrich_with_web_content(topics, user_goal)
-        print(f"[pipeline] Web content: {len(web_context)} chars")
 
     # ── Step 5: Final generation with with_structured_output ─────────────────
-    print("[pipeline] Running final generation agent...")
     prompt = build_enriched_generation_prompt(
         user_goal, time_query, retrieved_context, web_context
     )

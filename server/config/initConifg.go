@@ -2,7 +2,6 @@ package config
 
 import (
 	"errors"
-	"log"
 	"os"
 	"strings"
 
@@ -26,13 +25,9 @@ type Config struct {
 }
 
 func InitConfig() (*Config, error) {
-	log.Println("Initializing configuration...")
-
 	if err := godotenv.Load(); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			log.Print(".env file not found, using environment variables")
-		} else {
-			log.Printf("Failed to load .env file: %v", err)
+		if !errors.Is(err, os.ErrNotExist) {
+			// Ignore or propagate the error if it exists but fails to load
 		}
 	}
 

@@ -75,5 +75,4 @@ Make sure all doc indices are included."""
         return [doc for _, doc in scored_docs[:top_k]]
 
     except Exception as e:
-        print(f"[reranker] Groq reranking failed: {e}, falling back to original order")
         return documents[:top_k]
