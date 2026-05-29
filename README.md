@@ -1,266 +1,219 @@
 # CurriculumOS
 
-CurriculumOS is a full-stack learning dashboard for managing curated learning paths, signing in with manual auth or OAuth, and visualizing progress through a profile analytics experience.
+CurriculumOS is a full-stack AI-powered learning dashboard. It allows users to generate and manage custom, curated learning paths based on their goals and reference materials (files, URLs, YouTube videos). Users can track their progress day-by-day and task-by-day, enrich their understanding with dynamically fetched resources, and test themselves with AI-generated multi-tiered quizzes.
 
-The project currently includes:
-- a Go backend with PostgreSQL, GORM, manual auth, Google OAuth, and X OAuth
-- a React + Vite frontend with a custom editorial-style UI
-- a profile analytics page built with `recharts`
+The project is structured as a modern multi-service architecture comprising:
+1. **Frontend**: A React 19 + Vite app styling a custom, premium editorial dark UI with Lenis smooth scrolling, GSAP motion transitions, and interactive Recharts analytics.
+2. **Backend API Gateway**: A Go HTTP server utilizing GORM and PostgreSQL to handle authentication (manual + OAuth), persistence of roadmaps, day/task progress, and quiz results.
+3. **Python RAG Microservice**: A FastAPI service powering the ML/LLM pipeline. It handles document chunking, ChromaDB vector storage, LangChain pipelines, YouTube transcript extraction (with Webshare rotating proxy support), and structured quiz/roadmap generation via the Groq API.
+
+---
+
+## Architecture Diagram
+
+```mermaid
+graph TD
+    Client[React Frontend] <--> |HTTP / Cookies| GoServer[Go Backend]
+    GoServer <--> |PostgreSQL / GORM| DB[(PostgreSQL)]
+    GoServer <--> |HTTP / JSON| FastAPI[Python FastAPI Service]
+    FastAPI <--> |Vector Indexing| Chroma[(ChromaDB)]
+    FastAPI <--> |Structured Generation| Groq[Groq API / LLM]
+    FastAPI <--> |Transcripts / Info| YouTube[YouTube API / Webshare Proxies]
+```
 
 ## Features
 
-- Manual email/password signup and login
-- Google OAuth login
-- X OAuth 2.0 login
-- Cookie-based auth session
-- `GET /auth/me` session lookup
-- `POST /auth/logout` logout flow
-- Dashboard and profile pages
-- Profile analytics UI with charts for active paths, completed paths, momentum, and retention
-- Air-based hot reload for the Go server
+- **Personalized Roadmap Generation**: Upload documents (PDF, text) or submit URLs to generate structured, day-by-day study roadmaps targeted to your goals and timeline.
+- **Progress Tracking**: Keep track of learning milestones with day-level and task-level status check-offs.
+- **Resource Enrichment**: Fetch conceptual resources, additional reading, and matching YouTube video links dynamically for any concept in your path.
+- **Multi-Tiered Quizzes**: Assess your understanding with interactive quizzes featuring multiple difficulty tiers. Review results with explanations of correct and incorrect answers.
+- **Rich Analytics Dashboard**: Profile page displaying real-time analytics including path distribution, weekly completions, active path progress, and historical quiz stats.
+- **Secure Authentication**:
+  - Cookie-based session authentication with JWT.
+  - Manual Email/Password registration and login.
+  - OAuth 2.0 integrations with Google and X (Twitter) using PKCE.
+
+---
 
 ## Tech Stack
 
-### Backend
-
-- Go
-- net/http
-- GORM
-- PostgreSQL
-- `golang.org/x/oauth2`
-- `bcrypt`
-
 ### Frontend
+- **React 19** & **TypeScript**
+- **Vite** (Bundler)
+- **Tailwind CSS v4** (Styling)
+- **Axios** (API Client)
+- **GSAP** (Premium Micro-animations and transitions)
+- **Lenis** (Smooth Scroll)
+- **Recharts** (Visual Analytics & Progress Charts)
 
-- React 19
-- TypeScript
-- Vite
-- Tailwind CSS v4
-- Axios
-- GSAP
-- Lenis
-- Recharts
+### Backend API Gateway (Go)
+- **Go** (Language)
+- **net/http** (HTTP router)
+- **GORM** (ORM)
+- **PostgreSQL** (Database)
+- **golang.org/x/oauth2** (OAuth Clients)
+- **Bcrypt** (Password Hashing)
+
+### RAG & ML Microservice (Python)
+- **FastAPI** (Web Framework)
+- **LangChain** (RAG Orchestration)
+- **Groq SDK** (Structured LLM Generation)
+- **ChromaDB** (Vector Database)
+- **YouTube Transcript API** (Transcripts Extraction with proxy rotation)
+- **PyTube** (YouTube Playlist/Video metadata)
+
+---
 
 ## Project Structure
 
 ```text
 CurriculumOS/
-├── client/                  # React frontend
-│   └── src/
-│       ├── apis/            # client API calls
-│       ├── components/      # reusable UI
-│       ├── pages/           # route pages
-│       └── service/         # axios base instance
-├── server/                  # Go backend
-│   ├── cmd/server/          # app entrypoint
-│   ├── config/              # env config loading
-│   ├── db/                  # DB init and models
+├── client/                     # React Frontend
+│   ├── src/
+│   │   ├── apis/               # Axios API wrappers (auth, paths, etc.)
+│   │   ├── components/         # Reusable UI elements (Modals, Dividers, etc.)
+│   │   ├── pages/              # Routed views (Dashboard, SpecificPathView, Profile)
+│   │   └── service/            # Base Axios instance with credentials
+│   └── package.json
+│
+├── server/                     # Go Backend API Gateway
+│   ├── cmd/server/             # Main application entry point
+│   ├── config/                 # Environment configuration loading
+│   ├── db/                     # DB connection & GORM schema definitions (Roadmaps, QuizResults, Users)
 │   └── internal/
-│       ├── handlers/        # HTTP handlers
-│       ├── routes/          # route registration
-│       └── services/        # auth and oauth service logic
-└── README.md
+│       ├── handlers/           # HTTP handlers & Python proxy logic
+│       ├── routes/             # Route registrations
+│       └── services/           # Authentication & token helpers
+│
+└── python/                     # Python RAG & ML Microservice
+    ├── app/
+    │   ├── rag/                # Embeddings, chunkers, and YouTube loaders
+    │   ├── routes/             # FastAPI routers (quiz, enrich, upload)
+    │   ├── schemas/            # Pydantic request/response validation schemas
+    │   └── app.py              # FastAPI application server entrypoint
+    └── requirements.txt
 ```
 
-## Current Routes
-
-### Frontend
-
-- `/`
-- `/login`
-- `/signup`
-- `/dashboard`
-- `/profile`
-
-### Backend
-
-- `GET /health`
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `GET /api/auth/me`
-- `POST /api/auth/logout`
-- `GET /api/auth/oauth/google/login`
-- `GET /api/auth/oauth/google/callback`
-- `GET /api/auth/oauth/twitter/login`
-- `GET /api/auth/oauth/twitter/callback`
+---
 
 ## Environment Variables
 
-Create `server/.env`.
-
-Required:
-
+### 1. Go Backend Server (`server/.env`)
+Create `server/.env` with the following variables:
 ```env
 PORT=8080
 DATABASE_URL=postgres://postgres:password@localhost:5432/curriculumos?sslmode=disable
-JWT_SECRET=replace-with-a-long-random-secret
+JWT_SECRET=your-long-random-jwt-signing-key
+PYTHON_URL=http://localhost:8000
 
+# OAuth Credentials
 GOOGLE_OAUTH_CLIENT_ID=your-google-client-id
 GOOGLE_OAUTH_CLIENT_SECRET=your-google-client-secret
+GOOGLE_OAUTH_REDIRECT_URL=http://127.0.0.1:8080/api/auth/oauth/google/callback
 
 TWITTER_OAUTH_CLIENT_ID=your-x-client-id
 TWITTER_OAUTH_CLIENT_SECRET=your-x-client-secret
-```
+TWITTER_OAUTH_REDIRECT_URL=http://127.0.0.1:8080/api/auth/oauth/twitter/callback
 
-Recommended values:
-
-```env
+# Recommended App Settings
 SERVER_URL=http://127.0.0.1:8080
 CLIENT_URL=http://127.0.0.1:5173
-
-GOOGLE_OAUTH_REDIRECT_URL=http://127.0.0.1:8080/api/auth/oauth/google/callback
-TWITTER_OAUTH_REDIRECT_URL=http://127.0.0.1:8080/api/auth/oauth/twitter/callback
 ```
 
-Optional:
-
+### 2. Python RAG Server (`python/app/.env` and `python/.env`)
+Create `python/app/.env` with:
 ```env
-STATE=optional-fixed-oauth-state
+PORT=8000
+GROQ_API_KEY=your-groq-api-key
+CHROMA_HOST=api.trychroma.com
+CHROMA_API_KEY=your-chroma-cloud-api-key
+CHROMA_TENANT=your-chroma-tenant-id
+CHROMA_DATABASE=CurriculumOS
+
+# Webshare Proxy settings (Optional, for YouTube Transcript retrieval)
+WEBSHARE_PROXY_USERNAME=your-webshare-username
+WEBSHARE_PROXY_PASSWORD=your-webshare-password
+```
+Create `python/.env` with:
+```env
+HF_TOKEN=your-huggingface-token
 ```
 
-Frontend optional env:
-
-Create `client/.env` if you want to override the API URL.
-
+### 3. Frontend Client (`client/.env`)
+Create `client/.env` to configure the API base URL:
 ```env
 VITE_API_BASE_URL=http://127.0.0.1:8080/api
 ```
 
-## OAuth Setup
-
-### Google
-
-Set the Google redirect URI to:
-
-```text
-http://127.0.0.1:8080/api/auth/oauth/google/callback
-```
-
-### X
-
-Set the X app values to:
-
-- Website URL: `http://127.0.0.1:5173`
-- Callback URL: `http://127.0.0.1:8080/api/auth/oauth/twitter/callback`
-
-Notes:
-- `TWITTER_OAUTH_BEARER_TOKEN` is not required for user login
-- the login flow uses OAuth 2.0 client credentials plus PKCE
+---
 
 ## Getting Started
 
-### 1. Install frontend dependencies
+### Prerequisites
+- Go 1.21+
+- Python 3.10+
+- Node.js 18+
+- PostgreSQL instance running
 
-```bash
-cd client
-npm install
-```
+### Step 1: Set Up & Run the Go Backend
+1. Navigate to the server folder:
+   ```bash
+   cd server
+   ```
+2. Initialize database schema & start the server:
+   ```bash
+   go run ./cmd/server
+   ```
+   *(Or run using Air for hot-reload: `air`)*
 
-### 2. Start PostgreSQL
+### Step 2: Set Up & Run the Python RAG Service
+1. Navigate to the python folder:
+   ```bash
+   cd python
+   ```
+2. Create and activate a virtual environment:
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   ```
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Run the FastAPI server:
+   ```bash
+   uvicorn app.app:app --host 0.0.0.0 --port 8000 --reload
+   ```
 
-Use any local PostgreSQL instance and make sure `DATABASE_URL` points to it.
+### Step 3: Set Up & Run the React Frontend
+1. Navigate to the client folder:
+   ```bash
+   cd client
+   ```
+2. Install Node dependencies:
+   ```bash
+   npm install
+   ```
+3. Run the Vite development server:
+   ```bash
+   npm run dev
+   ```
 
-### 3. Start the backend
+Open your browser to `http://127.0.0.1:5173` to interact with CurriculumOS.
 
-```bash
-cd server
-go run ./cmd/server
-```
+---
 
-### 4. Start the frontend
+## Verification & Tests
 
-```bash
-cd client
-npm run dev
-```
-
-Frontend local URL:
-
-```text
-http://127.0.0.1:5173
-```
-
-Backend local URL:
-
-```text
-http://127.0.0.1:8080
-```
-
-## Hot Reload
-
-Air is configured for the Go server.
-
-Install Air:
-
-```bash
-go install github.com/air-verse/air@latest
-```
-
-Run it:
-
-```bash
-cd server
-air
-```
-
-Config file:
-
-- `server/.air.toml`
-
-## Client API Layer
-
-The frontend API layer is organized like this:
-
-- `client/src/service/baseUrl.ts`
-  Shared Axios instance with `withCredentials: true`
-- `client/src/apis/authApi.ts`
-  Auth-related API calls and OAuth redirect helpers
-
-## Auth Flow
-
-### Manual Auth
-
-1. User submits signup or login form
-2. Frontend calls `/api/auth/register` or `/api/auth/login`
-3. Backend validates credentials
-4. Backend issues an auth token and sets the `auth_token` cookie
-5. Frontend navigates to `/dashboard`
-
-### OAuth
-
-1. User clicks Google or X button
-2. Frontend redirects to backend OAuth start route
-3. Backend redirects to provider
-4. Provider redirects back to backend callback
-5. Backend upserts the user, sets `auth_token`, and redirects to the frontend
-
-## Verification Commands
-
-### Backend
-
+### Backend Tests
 ```bash
 cd server
 GOCACHE=/tmp/go-build go test ./...
 ```
 
-### Frontend
-
+### Frontend Linters & Builds
 ```bash
 cd client
 npm run lint
 npm run build
 ```
-
-## Current Limitations
-
-- Profile analytics currently use mocked chart data, while auth/session data is real
-- There is no persisted learning-path model yet behind the profile analytics
-- The production build currently emits a large JS chunk warning from Vite
-
-## Next Good Steps
-
-- Add database models for learning paths, enrollments, and completion state
-- Replace mocked profile analytics with backend-driven data
-- Add protected-route handling on the frontend
-- Add refresh-safe auth state management
-- Add tests for auth handlers and OAuth callbacks

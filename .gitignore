@@ -2,3 +2,4 @@ __pycache__/
 .vercel
 */__pycache__/*
 *.md
+.codex
