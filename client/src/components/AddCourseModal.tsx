@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import gsap from "gsap";
-import { X, Upload, Youtube, FileText, Link } from "lucide-react";
+import { X, Upload, Youtube, FileText } from "lucide-react";
 import { createPath } from "../apis/pathApi";
 
 interface AddCourseModalProps {
@@ -22,7 +22,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose, refreshData })
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentStep, setCurrentStep] = useState<StepType>(1);
   const [activeTab, setActiveTab] = useState<TabType>("document");
-  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const youtubeUrl = "";
   const [textValue, setTextValue] = useState("");
   const [durationValue, setDurationValue] = useState("");
   const [goalValue, setGoalValue] = useState("");
@@ -173,7 +173,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose, refreshData })
     }
 
     if (activeTab === "youtube") {
-      return Boolean(youtubeUrl.trim());
+      return false;
     }
 
     return Boolean(textValue.trim());
@@ -355,12 +355,12 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose, refreshData })
                     onClick={() => setActiveTab("youtube")}
                     className={`flex items-center gap-2 pb-2 text-sm uppercase tracking-widest transition-all ${
                       activeTab === "youtube"
-                        ? "text-white border-b border-white"
-                        : "text-text-secondary border-b border-transparent hover:text-white"
+                        ? "text-red-400 border-b border-red-500/50"
+                        : "text-text-secondary border-b border-transparent hover:text-red-400/80"
                     }`}
                   >
-                    <Youtube size={16} />
-                    YouTube
+                    <Youtube size={16} className="text-red-500/75" />
+                    YouTube (Blocked)
                   </button>
                   <button
                     onClick={() => setActiveTab("text")}
@@ -452,34 +452,10 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose, refreshData })
                 )}
 
                 {activeTab === "youtube" && (
-                  <div className="flex flex-col gap-4">
-                    <div className="space-y-2">
-                      <label className="text-xs uppercase tracking-widest text-text-secondary">
-                        YouTube URL
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          placeholder="Single video: youtube.com/watch?v=... or playlist: youtube.com/playlist?list=..."
-                          value={youtubeUrl}
-                          onChange={(e) => {
-                            setYoutubeUrl(e.target.value);
-                            setSubmitError("");
-                          }}
-                          className="w-full bg-transparent border-b border-white/20 py-3 pl-10 text-white focus:outline-none focus:border-white transition-colors placeholder:text-white/20 font-sans"
-                        />
-                        <Link
-                          size={18}
-                          className="absolute left-0 top-3.5 text-text-secondary"
-                        />
-                      </div>
-                    </div>
-                    <div className="p-4 bg-white/5 rounded-lg border border-white/5 mt-4">
-                      <p className="text-sm text-text-secondary">
-                        <span className="text-white font-medium">Note:</span>{" "}
-                        Paste a single video or playlist URL — we'll extract transcripts and structure them into a day-by-day plan.
-                      </p>
-                    </div>
+                  <div className="flex flex-col items-center justify-center p-8 bg-red-500/5 rounded-lg border border-red-500/10 text-center my-4">
+                    <p className="text-red-400 font-sans text-sm font-medium">
+                      currently blocked by youtube, please come back later
+                    </p>
                   </div>
                 )}
 
