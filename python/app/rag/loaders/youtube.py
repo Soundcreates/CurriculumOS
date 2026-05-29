@@ -6,6 +6,7 @@ from langchain_core.documents import Document
 from urllib.parse import parse_qs, urlparse
 import re
 import requests
+import os
 
 def extract_video_id(url: str) -> str:
     if "v=" in url:
@@ -15,15 +16,23 @@ def extract_video_id(url: str) -> str:
     else:
         raise ValueError("Invalid YouTube URL format")
 
-def load_yt_api_():
-    proxy_config = WebshareProxyConfig(
-        password=
-    )
-
 def load_youtube_video(url: str) -> list[Document]:
     video_id = extract_video_id(url)
+    
+    proxy_username = os.getenv("WEBSHARE_PROXY_USERNAME")
+    proxy_password = os.getenv("WEBSHARE_PROXY_PASSWORD")
+    
+    if proxy_username and proxy_password:
+        proxy_config = WebshareProxyConfig(
+            proxy_username=proxy_username,
+            proxy_password=proxy_password
+        )
+        api = YouTubeTranscriptApi(proxy_config=proxy_config)
+    else:
+        api = YouTubeTranscriptApi()
+
     try:
-        transcript = YouTubeTranscriptApi().fetch(video_id, languages=["en"])
+        transcript = api.fetch(video_id, languages=["en"])
     except (TranscriptsDisabled, NoTranscriptFound):
         print(f"No transcript available for video: {url}")
         return []
