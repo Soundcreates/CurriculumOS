@@ -74,3 +74,9 @@ def health_check():
         "ml_ready": ml_models.get("ready", False),
         "ml_error": ml_models.get("error"),
     }
+
+@app.get("/cron-health")
+def cron_health_check():
+    return{
+        "status":"healthy",
+    }
