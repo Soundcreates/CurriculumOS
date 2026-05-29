@@ -301,14 +301,14 @@ const QuizModal: React.FC<QuizModalProps> = ({
                     <div>
                       <p className="font-sans text-xs text-text-secondary">Your answer:</p>
                       <p className={`font-sans text-sm ${isCorrect ? "text-[#8ecf9f]" : "text-[#f3989e]"}`}>
-                        {userAnswer}) {item.options[userAnswer.charCodeAt(0) - 65]}
+                        {userAnswer ? `${userAnswer}) ${item.options[userAnswer.charCodeAt(0) - 65]}` : "—"}
                       </p>
                     </div>
                     {!isCorrect && (
                       <div>
                         <p className="font-sans text-xs text-text-secondary">Correct answer:</p>
                         <p className="font-sans text-sm text-[#8ecf9f]">
-                          {item.answer}) {item.options[item.answer.charCodeAt(0) - 65]}
+                          {item.answer ? `${item.answer}) ${item.options[item.answer.charCodeAt(0) - 65]}` : "—"}
                         </p>
                       </div>
                     )}
