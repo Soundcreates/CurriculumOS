@@ -17,8 +17,9 @@ import {
 } from "recharts";
 import Layout from "../components/Layout";
 import Navigation from "../components/Navigation";
-import { getCurrentUser, logout, type AuthUser } from "../apis/authApi";
+import { getCurrentUser, type AuthUser } from "../apis/authApi";
 import { getUserStats, type UserStats } from "../apis/pathApi";
+import { useAuth } from "../context/AuthContext";
 
 const DIST_COLORS: Record<string, string> = {
   Active: "#f1d6a8",
@@ -35,6 +36,7 @@ const tooltipStyle = {
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const heroRef = useRef<HTMLDivElement>(null);
   const statsRef = useRef<HTMLDivElement>(null);
   const chartsRef = useRef<HTMLDivElement>(null);
