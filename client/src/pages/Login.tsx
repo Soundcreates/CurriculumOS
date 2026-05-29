@@ -4,13 +4,14 @@ import Navigation from "../components/Navigation";
 import OAuthButton from "../components/OAuthButton";
 import gsap from "gsap";
 import { Link, useNavigate } from "react-router-dom";
-import { login, startOAuthLogin } from "../apis/authApi";
+import { useAuth } from "../context/AuthContext";
 
 const Login: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const navigate = useNavigate();
+  const { login, startOAuthLogin } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -28,24 +29,17 @@ const Login: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await login({
+      const user = await login({
         email,
         password,
       });
 
-      const data = response.data as {
-        success?: boolean;
-        token?: string;
-        user?: unknown;
-        message?: string;
-      };
-
-      if (data?.token || data?.user || data?.success) {
+      if (user) {
         navigate("/dashboard");
         return;
       }
 
-      setStatusMessage(data?.message ?? "Login request completed.");
+      setStatusMessage("Login request completed.");
     } catch {
       setErrorMessage("Login failed. Please try again.");
     } finally {

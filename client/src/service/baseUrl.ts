@@ -1,7 +1,13 @@
 import axios from "axios";
 
 const normalizedBaseUrl = (
-  import.meta.env.VITE_API_BASE_URL ?? "https://curriculumos.onrender.com/api"
+  import.meta.env.VITE_API_BASE_URL ??
+  (typeof window !== "undefined" &&
+  (window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1" ||
+    window.location.hostname === "0.0.0.0")
+    ? "/api"
+    : "https://curriculumos.onrender.com/api")
 ).replace(/\/$/, "");
 
 export const apiBaseUrl = normalizedBaseUrl;

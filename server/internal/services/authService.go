@@ -112,7 +112,7 @@ func UpsertOAuthUser(db *gorm.DB, profile OAuthUserProfile) (*models.User, error
 	user.FirstName = firstNonEmpty(profile.FirstName, user.FirstName)
 	user.LastName = firstNonEmpty(profile.LastName, user.LastName)
 	user.Email = firstNonEmpty(profile.Email, user.Email)
-	user.ProviderAccountID = profile.ProviderUserID
+	user.ProviderAccountID = &profile.ProviderUserID
 	user.AuthProvider = profile.Provider
 	user.OAUTH_access_token = profile.AccessToken
 	user.OAUTH_refresh_token = profile.RefreshToken
