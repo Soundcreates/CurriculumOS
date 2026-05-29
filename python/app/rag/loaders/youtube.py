@@ -1,4 +1,5 @@
 from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api.proxies import WebshareProxyConfig
 from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
 from pytube import Playlist, YouTube
 from langchain_core.documents import Document
@@ -14,6 +15,10 @@ def extract_video_id(url: str) -> str:
     else:
         raise ValueError("Invalid YouTube URL format")
 
+def load_yt_api_():
+    proxy_config = WebshareProxyConfig(
+        password=
+    )
 
 def load_youtube_video(url: str) -> list[Document]:
     video_id = extract_video_id(url)

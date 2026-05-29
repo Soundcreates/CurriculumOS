@@ -45,11 +45,13 @@ const QuizModal: React.FC<QuizModalProps> = ({
   const [quizState, setQuizState] = useState<QuizState>("settings");
   const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
   const [isSavingQuiz, setIsSavingQuiz] = useState(false);
+  const [generationInitiated, setGenerationInitiated] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
       setQuizState("settings");
       setUserAnswers({});
+      setGenerationInitiated(false);
       return;
     }
 
@@ -83,15 +85,19 @@ const QuizModal: React.FC<QuizModalProps> = ({
   }, [isOpen]);
 
   const handleGenerateAndStart = () => {
+    setGenerationInitiated(true);
     onGenerateQuiz();
-    // Wait for questions to load and transition to taking state
-    setTimeout(() => {
-      if (questions.length > 0) {
+  };
+
+  useEffect(() => {
+    if (generationInitiated && !isLoading) {
+      if (questions.length > 0 && quizState === "settings") {
         setQuizState("taking");
         setUserAnswers({});
       }
-    }, 500);
-  };
+      setGenerationInitiated(false);
+    }
+  }, [isLoading, questions, quizState, generationInitiated]);
 
   const handleAnswerSelect = (questionIndex: number, selectedOption: string) => {
     setUserAnswers((prev) => ({
@@ -240,7 +246,7 @@ const QuizModal: React.FC<QuizModalProps> = ({
 
       <button
         onClick={handleSubmitQuiz}
-        disabled={Object.keys(userAnswers).length !== questions.length || isSavingQuiz}
+        disabled={questions.length === 0 || Object.keys(userAnswers).length !== questions.length || isSavingQuiz}
         className="w-full rounded-full bg-white px-5 py-3 font-sans text-xs uppercase tracking-[0.28em] text-black transition-colors hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isSavingQuiz ? "Saving..." : "Submit Quiz"}
