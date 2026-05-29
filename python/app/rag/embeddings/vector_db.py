@@ -1,10 +1,10 @@
 import os
 
 from app.rag.embeddings.embeddor import get_embedding_function
-from app.rag.embeddings.reranker import (
-    deduplicate_documents,
-    rerank_documents,
-    reranker_enabled,
+from app.rag.embeddings.reranker import deduplicate_documents
+from app.rag.embeddings.reranker_groq import (
+    is_reranker_enabled,
+    rerank_documents_groq,
 )
 from chromadb.errors import InvalidArgumentError
 from langchain_core.documents import Document
@@ -77,8 +77,11 @@ class vector_db:
             )
 
         deduplicated_documents = deduplicate_documents(candidate_documents)
-        if reranker_enabled():
-            reranked_documents = rerank_documents(query, deduplicated_documents)
-            return reranked_documents[:k]
+
+        if is_reranker_enabled():
+            from app.ml_models import ml_models
+            llm = ml_models.get("llm")
+            reranked_documents = rerank_documents_groq(query, deduplicated_documents, llm=llm, top_k=k)
+            return reranked_documents
 
         return deduplicated_documents[:k]
