@@ -52,6 +52,12 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose, refreshData })
   }, []);
 
   useEffect(() => {
+    if (activeTab === "text" && currentStep === 3) {
+      setCurrentStep(2);
+    }
+  }, [activeTab, currentStep]);
+
+  useEffect(() => {
     let isCancelled = false;
 
     const buildPreviews = async () => {
@@ -190,6 +196,11 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose, refreshData })
       return;
     }
 
+    if (activeTab === "text") {
+      handleSubmit();
+      return;
+    }
+
     setSubmitError("");
     setCurrentStep(3);
   };
@@ -205,8 +216,13 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose, refreshData })
       return;
     }
 
-    if (!goalValue.trim()) {
-      setSubmitError("Please add what you want to achieve from this roadmap.");
+    const userGoalPayload = activeTab === "text" ? textValue.trim() : goalValue.trim();
+    if (!userGoalPayload) {
+      setSubmitError(
+        activeTab === "text"
+          ? "Please enter your topic description."
+          : "Please add what you want to achieve from this roadmap."
+      );
       return;
     }
 
@@ -227,7 +243,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose, refreshData })
     }
 
     payload.append("time_query", durationValue.trim());
-    payload.append("user_goal", goalValue.trim());
+    payload.append("user_goal", userGoalPayload);
 
     setIsSubmitting(true);
     setSubmitError("");
@@ -297,24 +313,26 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose, refreshData })
               >
                 Duration
               </button>
-              <button
-                onClick={() => {
-                  if (hasSourceInput() && durationValue.trim()) {
-                    setSubmitError("");
-                    setCurrentStep(3);
-                  }
-                }}
-                className={`pb-2 text-sm uppercase tracking-widest transition-all ${
-                  currentStep === 3
-                    ? "text-white border-b border-white"
-                    : "text-text-secondary border-b border-transparent hover:text-white"
-                }`}
-              >
-                Goal
-              </button>
+              {activeTab !== "text" && (
+                <button
+                  onClick={() => {
+                    if (hasSourceInput() && durationValue.trim()) {
+                      setSubmitError("");
+                      setCurrentStep(3);
+                    }
+                  }}
+                  className={`pb-2 text-sm uppercase tracking-widest transition-all ${
+                    currentStep === 3
+                      ? "text-white border-b border-white"
+                      : "text-text-secondary border-b border-transparent hover:text-white"
+                  }`}
+                >
+                  Goal
+                </button>
+              )}
             </div>
             <span className="text-xs uppercase tracking-[0.3em] text-text-secondary">
-              Step {currentStep} of 3
+              Step {currentStep} of {activeTab === "text" ? 2 : 3}
             </span>
           </div>
 
@@ -559,7 +577,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose, refreshData })
           >
             {currentStep === 1 ? "Cancel" : "Back"}
           </button>
-          {currentStep === 3 ? (
+          {currentStep === (activeTab === "text" ? 2 : 3) ? (
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}

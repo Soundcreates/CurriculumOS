@@ -15,31 +15,37 @@ func InitDB(cfg *config.Config) (*gorm.DB, error) {
 	log.Println("Initializing database...")
 	database_url := cfg.DATABASE_URL
 
-	// Render deployments frequently sit behind pgBouncer. Using the simple protocol and
-	// disabling prepared statement caching avoids "prepared statement name is already in use" (08P01).
-	db, err := gorm.Open(
-		postgres.New(postgres.Config{
-			DSN:                  database_url,
-			PreferSimpleProtocol: true,
-		}),
-		&gorm.Config{
-			PrepareStmt: false,
-			Logger: logger.New(
-				log.New(os.Stdout, "\r\n", log.LstdFlags),
-				logger.Config{
-					SlowThreshold:             200 * time.Millisecond,
-					LogLevel:                  logger.Warn,
-					IgnoreRecordNotFoundError: true,
-					Colorful:                  false,
-				},
-			),
-		},
-	)
-	if err != nil {
-		log.Print("Failed to connect to database:", err)
-		return nil, err
+	var db *gorm.DB
+	var err error
+
+	for i := 1; i <= 10; i++ {
+		log.Printf("Connecting to database (attempt %d/10)...", i)
+		db, err = gorm.Open(
+			postgres.New(postgres.Config{
+				DSN:                  database_url,
+				PreferSimpleProtocol: true,
+			}),
+			&gorm.Config{
+				PrepareStmt: false,
+				Logger: logger.New(
+					log.New(os.Stdout, "\r\n", log.LstdFlags),
+					logger.Config{
+						SlowThreshold:             200 * time.Millisecond,
+						LogLevel:                  logger.Warn,
+						IgnoreRecordNotFoundError: true,
+						Colorful:                  false,
+					},
+				),
+			},
+		)
+		if err == nil {
+			log.Println("Successfully connected to database!")
+			return db, nil
+		}
+		log.Printf("Failed to connect to database (attempt %d/10): %v", i, err)
+		time.Sleep(2 * time.Second)
 	}
 
-	return db, nil
+	return nil, err
 
 }

@@ -25,7 +25,8 @@ def load_youtube_video(url: str) -> list[Document]:
     if proxy_username and proxy_password:
         proxy_config = WebshareProxyConfig(
             proxy_username=proxy_username,
-            proxy_password=proxy_password
+            proxy_password=proxy_password,
+            filter_ip_locations=["jp"]
         )
         api = YouTubeTranscriptApi(proxy_config=proxy_config)
     else:

@@ -12,9 +12,14 @@ services:
 
     environment:
       DATABASE_URL: postgresql://myuser:mypassword@postgres:5432/mydatabase
+      PYTHON_URL: http://python_service:8000
 
     depends_on:
       - postgres
+      - python_service
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
     restart: unless-stopped
 
@@ -24,7 +29,7 @@ services:
 
   postgres:
     image: postgres:17-alpine
-    container_name: postgres_db
+    container_name: cur_dev_db
 
     environment:
       POSTGRES_USER: myuser
@@ -36,6 +41,30 @@ services:
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+    restart: unless-stopped
+
+    networks:
+      - app_network
+
+
+  python_service:
+    build:
+      context: ../python
+      dockerfile: Dockerfile.prod
+    container_name: python_service
+
+    ports:
+      - "8000:8000"
+
+    env_file:
+      - ../python/app/.env
+
+    environment:
+      - DATABASE_URL=postgresql://myuser:mypassword@postgres:5432/mydatabase
+
+    depends_on:
+      - postgres
 
     restart: unless-stopped
 

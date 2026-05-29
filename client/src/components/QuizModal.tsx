@@ -26,6 +26,38 @@ type QuizModalProps = {
 
 type QuizState = "settings" | "taking" | "results";
 
+export const checkAnswer = (question: QuizQuestion, userAnswer: string): boolean => {
+  if (!userAnswer || !question || !question.answer) return false;
+  
+  const normUser = userAnswer.trim().toUpperCase();
+  const normCorrect = question.answer.trim().toUpperCase();
+  
+  if (normUser === normCorrect) return true;
+  
+  // If the correct answer is the full option text, check if the user selected that option
+  const userIndex = normUser.charCodeAt(0) - 65;
+  const userOptionText = question.options[userIndex];
+  if (userOptionText && userOptionText.trim().toUpperCase() === question.answer.trim().toUpperCase()) {
+    return true;
+  }
+  
+  // If the correct answer is in the format "A) Text" or "A. Text"
+  if (normCorrect.startsWith(normUser) && (normCorrect.length === 1 || normCorrect[1] === ')' || normCorrect[1] === '.')) {
+    return true;
+  }
+  
+  // Find if correct answer matches any option text, and see if the user selected that option's letter
+  const correctOptionIdx = question.options.findIndex(
+    (opt) => opt.trim().toUpperCase() === question.answer.trim().toUpperCase()
+  );
+  if (correctOptionIdx !== -1) {
+    const correctLetter = String.fromCharCode(65 + correctOptionIdx);
+    if (normUser === correctLetter) return true;
+  }
+  
+  return false;
+};
+
 const QuizModal: React.FC<QuizModalProps> = ({
   isOpen,
   onClose,
@@ -45,18 +77,14 @@ const QuizModal: React.FC<QuizModalProps> = ({
   const [quizState, setQuizState] = useState<QuizState>("settings");
   const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
   const [isSavingQuiz, setIsSavingQuiz] = useState(false);
-  const [generationInitiated, setGenerationInitiated] = useState(false);
+  const [isWaitingForQuiz, setIsWaitingForQuiz] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
       setQuizState("settings");
       setUserAnswers({});
-      setGenerationInitiated(false);
+      setIsWaitingForQuiz(false);
       return;
-    }
-
-    if (isLoading) {
-      setGenerationInitiated(true);
     }
 
     const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
@@ -70,7 +98,7 @@ const QuizModal: React.FC<QuizModalProps> = ({
     return () => {
       tl.kill();
     };
-  }, [isOpen, isLoading]);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -89,19 +117,26 @@ const QuizModal: React.FC<QuizModalProps> = ({
   }, [isOpen]);
 
   const handleGenerateAndStart = () => {
-    setGenerationInitiated(true);
+    setIsWaitingForQuiz(true);
     onGenerateQuiz();
   };
 
   useEffect(() => {
-    if (generationInitiated && !isLoading) {
-      if (questions.length > 0 && quizState === "settings") {
+    if (!isOpen) {
+      setIsWaitingForQuiz(false);
+      return;
+    }
+
+    if (isLoading) {
+      setIsWaitingForQuiz(true);
+    } else if (isWaitingForQuiz && questions.length > 0) {
+      if (quizState === "settings") {
         setQuizState("taking");
         setUserAnswers({});
       }
-      setGenerationInitiated(false);
+      setIsWaitingForQuiz(false);
     }
-  }, [isLoading, questions, quizState, generationInitiated]);
+  }, [isOpen, isLoading, questions, isWaitingForQuiz, quizState]);
 
   const handleAnswerSelect = (questionIndex: number, selectedOption: string) => {
     setUserAnswers((prev) => ({
@@ -119,7 +154,10 @@ const QuizModal: React.FC<QuizModalProps> = ({
     setIsSavingQuiz(true);
     try {
       const correctCount = Object.entries(userAnswers).filter(
-        ([index, answer]) => questions[Number(index)]?.answer === answer,
+        ([index, answer]) => {
+          const q = questions[Number(index)];
+          return q && checkAnswer(q, answer);
+        },
       ).length;
 
       await submitQuiz({
@@ -148,7 +186,10 @@ const QuizModal: React.FC<QuizModalProps> = ({
   const score = useMemo(() => {
     if (questions.length === 0) return 0;
     const correct = Object.entries(userAnswers).filter(
-      ([index, answer]) => questions[Number(index)]?.answer === answer,
+      ([index, answer]) => {
+        const q = questions[Number(index)];
+        return q && checkAnswer(q, answer);
+      },
     ).length;
     return Math.round((correct / questions.length) * 100);
   }, [userAnswers, questions]);
@@ -266,8 +307,10 @@ const QuizModal: React.FC<QuizModalProps> = ({
         <p className="font-sans text-xs uppercase tracking-[0.3em] text-[#d8bf92]">Your Score</p>
         <p className="mt-4 text-5xl font-serif text-white">{score}%</p>
         <p className="mt-2 font-sans text-sm text-text-secondary">
-          {Object.entries(userAnswers).filter(([index, answer]) => questions[Number(index)]?.answer === answer)
-            .length}{" "}
+          {Object.entries(userAnswers).filter(([index, answer]) => {
+            const q = questions[Number(index)];
+            return q && checkAnswer(q, answer);
+          }).length}{" "}
           out of {questions.length} correct
         </p>
       </div>
@@ -275,7 +318,7 @@ const QuizModal: React.FC<QuizModalProps> = ({
       <div className="space-y-3">
         {questions.map((item, index) => {
           const userAnswer = userAnswers[index];
-          const isCorrect = userAnswer === item.answer;
+          const isCorrect = userAnswer ? checkAnswer(item, userAnswer) : false;
           return (
             <article
               key={`result-${index}`}
