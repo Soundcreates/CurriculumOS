@@ -696,11 +696,16 @@ const SpecificPathView: React.FC = () => {
                       </p>
                     </div>
                     <button
-                      onClick={() => { setIsQuizModalOpen(true); setQuizError(""); setQuizQuestions([]); }}
-                      disabled={!allDaysCompleted}
+                      onClick={() => {
+                        setIsQuizModalOpen(true);
+                        setQuizError("");
+                        setQuizQuestions([]);
+                        handleGenerateQuiz();
+                      }}
+                      disabled={!allDaysCompleted || isGeneratingQuiz}
                       className="rounded-full bg-white px-5 py-2 font-sans text-xs uppercase tracking-[0.28em] text-black transition-colors hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      Generate Quiz
+                      {isGeneratingQuiz ? "Generating Quiz..." : "Generate Quiz"}
                     </button>
                   </div>
                 </div>

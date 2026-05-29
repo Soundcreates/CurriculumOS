@@ -55,6 +55,10 @@ const QuizModal: React.FC<QuizModalProps> = ({
       return;
     }
 
+    if (isLoading) {
+      setGenerationInitiated(true);
+    }
+
     const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
     tl.fromTo(overlayRef.current, { opacity: 0 }, { opacity: 1, duration: 0.25 }).fromTo(
       modalRef.current,
@@ -66,7 +70,7 @@ const QuizModal: React.FC<QuizModalProps> = ({
     return () => {
       tl.kill();
     };
-  }, [isOpen]);
+  }, [isOpen, isLoading]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -224,17 +228,19 @@ const QuizModal: React.FC<QuizModalProps> = ({
 
           <ul className="mt-4 space-y-2">
             {item.options.map((option, optionIndex) => {
-              const isSelected = userAnswers[index] === option;
+              const optionLetter = String.fromCharCode(65 + optionIndex); // 'A', 'B', 'C', 'D'
+              const isSelected = userAnswers[index] === optionLetter;
               return (
                 <li key={`quiz-option-${index}-${optionIndex}`}>
                   <button
-                    onClick={() => handleAnswerSelect(index, option)}
+                    onClick={() => handleAnswerSelect(index, optionLetter)}
                     className={`w-full rounded-lg border px-4 py-3 text-left font-sans text-sm transition-all ${
                       isSelected
                         ? "border-[#f1d6a8] bg-[#f1d6a8]/10 text-[#f1d6a8]"
                         : "border-white/8 bg-black/20 text-[#e6dece] hover:border-white/15 hover:bg-white/5"
                     }`}
                   >
+                    <span className="mr-2 font-semibold text-[#d8bf92]">{optionLetter}.</span>
                     {option}
                   </button>
                 </li>
@@ -295,13 +301,15 @@ const QuizModal: React.FC<QuizModalProps> = ({
                     <div>
                       <p className="font-sans text-xs text-text-secondary">Your answer:</p>
                       <p className={`font-sans text-sm ${isCorrect ? "text-[#8ecf9f]" : "text-[#f3989e]"}`}>
-                        {userAnswer}
+                        {userAnswer}) {item.options[userAnswer.charCodeAt(0) - 65]}
                       </p>
                     </div>
                     {!isCorrect && (
                       <div>
                         <p className="font-sans text-xs text-text-secondary">Correct answer:</p>
-                        <p className="font-sans text-sm text-[#8ecf9f]">{item.answer}</p>
+                        <p className="font-sans text-sm text-[#8ecf9f]">
+                          {item.answer}) {item.options[item.answer.charCodeAt(0) - 65]}
+                        </p>
                       </div>
                     )}
                   </div>
