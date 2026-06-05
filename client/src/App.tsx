@@ -1,5 +1,4 @@
-import {
-  BrowserRouter as Router,
+import { BrowserRouter as Router,
   Routes,
   Route,
   useLocation,
@@ -16,6 +15,8 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { ProtectedRoutes } from "./context/ProtectedRoutes";
 import { PublicOnlyRoutes } from "./context/PublicOnlyRoutes";
+import {Analytics} from "@vercel/analytics/react";
+
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -78,6 +79,7 @@ function App() {
           <Route path="/path/:id" element={<SpecificPathView />} />
         </Route>
       </Routes>
+      <Analytics />
     </Router>
   );
 }
