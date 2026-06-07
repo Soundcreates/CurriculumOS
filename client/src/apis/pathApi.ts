@@ -1,4 +1,4 @@
-import api from "../service/baseUrl";
+import api, { isServiceUnavailableError } from "../service/baseUrl";
 
 export type Roadmap = {
   id: number;
@@ -184,12 +184,21 @@ export async function getUserStats(): Promise<UserStats | null> {
   }
 }
 
-export function createPath(payload: FormData) {
-  return api.post<CreatePathResponse>("/path/create", payload, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+export async function createPath(payload: FormData) {
+  try {
+    return await api.post<CreatePathResponse>("/path/create", payload, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+  } catch (error) {
+    if (isServiceUnavailableError(error)) {
+      const err = new Error("Service platform died due to free tier limits");
+      (err as any).isFreeTierLimitError = true;
+      throw err;
+    }
+    throw error;
+  }
 }
 
 export async function getAllPaths(): Promise<Roadmap[]> {

@@ -252,8 +252,12 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose, refreshData })
       await createPath(payload);
       handleClose();
       refreshData();
-    } catch {
-      setSubmitError("Failed to create path.");
+    } catch (error) {
+      if (error instanceof Error) {
+        setSubmitError(error.message);
+      } else {
+        setSubmitError("Failed to create path.");
+      }
     } finally {
       setIsSubmitting(false);
     }
