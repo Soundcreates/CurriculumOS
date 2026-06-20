@@ -7,7 +7,7 @@ const normalizedBaseUrl = (
     window.location.hostname === "127.0.0.1" ||
     window.location.hostname === "0.0.0.0")
     ? "/api"
-    : "https://curriculumos.onrender.com/api")
+    : "https://curriculumos-detz.onrender.com/api")
 ).replace(/\/$/, "");
 
 export const apiBaseUrl = normalizedBaseUrl;

@@ -31,7 +31,7 @@ func InitConfig() (*Config, error) {
 		}
 	}
 
-	serverURL := getEnv("SERVER_URL", "https://curriculumos.onrender.com")
+	serverURL := getEnv("SERVER_URL", "https://curriculumos-detz.onrender.com")
 
 	cfg := &Config{
 		PORT:                        getEnv("PORT", "8080"),
@@ -46,7 +46,7 @@ func InitConfig() (*Config, error) {
 		TWITTER_OAUTH_CLIENT_ID:     strings.TrimSpace(os.Getenv("TWITTER_OAUTH_CLIENT_ID")),
 		TWITTER_OAUTH_CLIENT_SECRET: strings.TrimSpace(os.Getenv("TWITTER_OAUTH_CLIENT_SECRET")),
 		TWITTER_OAUTH_REDIRECT_URL:  getEnv("TWITTER_OAUTH_REDIRECT_URL", serverURL+"/api/auth/oauth/twitter/callback"),
-		PYTHON_URL:                  getEnv("PYTHON_URL", "https://curriculumos-1.onrender.com"),
+		PYTHON_URL:                  getEnv("PYTHON_URL", "https://curriculumos-1-9w9s.onrender.com"),
 	}
 
 	return cfg, nil
