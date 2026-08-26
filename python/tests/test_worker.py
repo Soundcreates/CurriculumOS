@@ -12,7 +12,7 @@ from app.routes.worker import WorkerRequest, _process_generation_job, generate_w
 class WorkerTests(unittest.TestCase):
     def test_worker_completes_with_roadmap_object_not_json_string(self):
         previous_token = os.environ.get("INTERNAL_SERVICE_TOKEN")
-        os.environ["INTERNAL_SERVICE_TOKEN"] = "test-token"
+        os.environ["INTERNAL_SERVICE_TOKEN"] = "  Bearer test-token  "
         self.addCleanup(_restore_env, "INTERNAL_SERVICE_TOKEN", previous_token)
         ml_models["ready"] = True
         ml_models["llm"] = MagicMock()

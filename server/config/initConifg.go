@@ -56,11 +56,19 @@ func InitConfig() (*Config, error) {
 		WORKER_URL:                  getEnv("WORKER_URL", getEnv("PYTHON_URL", "http://127.0.0.1:8000")),
 		QSTASH_URL:                  getEnv("QSTASH_URL", "https://qstash.upstash.io/v2/publish"),
 		QSTASH_TOKEN:                strings.TrimSpace(os.Getenv("QSTASH_TOKEN")),
-		INTERNAL_SERVICE_TOKEN:      strings.TrimSpace(os.Getenv("INTERNAL_SERVICE_TOKEN")),
+		INTERNAL_SERVICE_TOKEN:      normalizeInternalServiceToken(os.Getenv("INTERNAL_SERVICE_TOKEN")),
 		MAX_UPLOAD_BYTES:            getEnvInt64("MAX_UPLOAD_BYTES", 10<<20),
 	}
 
 	return cfg, nil
+}
+
+func normalizeInternalServiceToken(value string) string {
+	token := strings.TrimSpace(value)
+	if len(token) >= len("Bearer ") && strings.EqualFold(token[:len("Bearer ")], "Bearer ") {
+		token = strings.TrimSpace(token[len("Bearer "):])
+	}
+	return token
 }
 
 func getEnv(key string, fallback string) string {

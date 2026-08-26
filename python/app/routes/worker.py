@@ -10,6 +10,7 @@ from fastapi import APIRouter, BackgroundTasks, Header, HTTPException
 from langchain_core.documents import Document
 from pydantic import BaseModel
 
+from app.internal_auth import get_internal_service_token
 from app.ml_models import ml_models
 from app.rag.loaders.pdf import load_pdf_bytes
 from app.rag.loaders.text import load_text
@@ -26,12 +27,8 @@ class WorkerRequest(BaseModel):
     job_id: str
 
 
-def _service_token() -> str:
-    return os.getenv("INTERNAL_SERVICE_TOKEN", "")
-
-
 def _headers() -> dict[str, str]:
-    return {"Authorization": f"Bearer {_service_token()}"}
+    return {"Authorization": f"Bearer {get_internal_service_token()}"}
 
 
 def _gateway_request(method: str, path: str, **kwargs: Any) -> requests.Response:
@@ -71,7 +68,7 @@ def generate_worker(
     background_tasks: BackgroundTasks,
     authorization: str | None = Header(None),
 ):
-    service_token = _service_token()
+    service_token = get_internal_service_token()
     if not service_token or authorization != f"Bearer {service_token}":
         raise HTTPException(status_code=401, detail="unauthorized")
     if not ml_models.get("ready"):
