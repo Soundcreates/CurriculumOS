@@ -37,7 +37,7 @@ func InitConfig() (*Config, error) {
 		}
 	}
 
-	serverURL := getEnv("SERVER_URL", "https://curriculumos-detz.onrender.com")
+	serverURL := getEnv("SERVER_URL", "https://curriculumos.onrender.com")
 
 	cfg := &Config{
 		PORT:                        getEnv("PORT", "8080"),
@@ -79,9 +79,9 @@ func getEnv(key string, fallback string) string {
 		val = strings.TrimSpace(fallback)
 	}
 
-	// Automatically migrate old suspended Render domain to the new active endpoint
-	if strings.Contains(val, "curriculumos.onrender.com") {
-		val = strings.ReplaceAll(val, "curriculumos.onrender.com", "curriculumos-detz.onrender.com")
+	// Automatically migrate the old backend domain to the current active endpoint.
+	if strings.Contains(val, "curriculumos-detz.onrender.com") {
+		val = strings.ReplaceAll(val, "curriculumos-detz.onrender.com", "curriculumos.onrender.com")
 	}
 
 	return val

@@ -8,12 +8,12 @@ const resolveBaseUrl = () => {
       window.location.hostname === "127.0.0.1" ||
       window.location.hostname === "0.0.0.0")
       ? "/api"
-      : "https://curriculumos-detz.onrender.com/api");
+      : "https://curriculumos.onrender.com/api");
 
-  // Automatically replace any reference to the old suspended Render domain with the new active domain
+  // Automatically migrate the old backend domain to the current active domain.
   rawUrl = rawUrl.replace(
-    "curriculumos.onrender.com",
-    "curriculumos-detz.onrender.com"
+    "curriculumos-detz.onrender.com",
+    "curriculumos.onrender.com"
   );
 
   let cleanedUrl = rawUrl.replace(/\/$/, "");

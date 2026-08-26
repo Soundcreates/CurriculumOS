@@ -295,11 +295,11 @@ func oauthCallbackURL(r *http.Request, cfg *config.Config, provider string) stri
 	switch provider {
 	case "google":
 		if redirect := strings.TrimSpace(cfg.GOOGLE_OAUTH_REDIRECT_URL); redirect != "" {
-			return strings.ReplaceAll(redirect, "curriculumos.onrender.com", "curriculumos-detz.onrender.com")
+			return strings.ReplaceAll(redirect, "curriculumos-detz.onrender.com", "curriculumos.onrender.com")
 		}
 	case "twitter":
 		if redirect := strings.TrimSpace(cfg.TWITTER_OAUTH_REDIRECT_URL); redirect != "" {
-			return strings.ReplaceAll(redirect, "curriculumos.onrender.com", "curriculumos-detz.onrender.com")
+			return strings.ReplaceAll(redirect, "curriculumos-detz.onrender.com", "curriculumos.onrender.com")
 		}
 	}
 
@@ -322,5 +322,5 @@ func oauthRequestBaseURL(r *http.Request) string {
 	}
 
 	base := scheme + "://" + host
-	return strings.ReplaceAll(base, "curriculumos.onrender.com", "curriculumos-detz.onrender.com")
+	return strings.ReplaceAll(base, "curriculumos-detz.onrender.com", "curriculumos.onrender.com")
 }
