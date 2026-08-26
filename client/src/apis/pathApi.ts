@@ -1,4 +1,5 @@
 import api, { isServiceUnavailableError } from "../service/baseUrl";
+import { AxiosError } from "axios";
 
 export type Roadmap = {
   id: number;
@@ -16,21 +17,29 @@ export type Roadmap = {
   authorId: number;
 };
 
-export type CreatePathPythonResponse = {
-  success: boolean;
-  message: string;
-  roadmap: string;
-  user_goal: string;
-  time_query: string;
-  processed_types: string[];
-  documents_count: number;
-};
-
 export type CreatePathResponse = {
   success: boolean;
-  message: string;
-  python_response: CreatePathPythonResponse;
-  roadmap_id?: number;
+  jobId: string;
+  status: "queued" | "running" | "succeeded" | "failed";
+  roadmapId?: number;
+  errorMessage?: string;
+  userGoal?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type GenerationRequestError = Error & { jobId?: string };
+
+export type RoadmapFeedback = {
+  id: number;
+  roadmapId: number;
+  citationRating: number;
+  taskUsefulnessRating: number;
+  completionStatus: "not_started" | "in_progress" | "completed" | "stopped";
+  completionPercent: number;
+  comment: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type GetAllPathsResponse = {
@@ -193,12 +202,52 @@ export async function createPath(payload: FormData) {
     });
   } catch (error) {
     if (isServiceUnavailableError(error)) {
-      const err = new Error("Service platform died due to free tier limits");
-      (err as any).isFreeTierLimitError = true;
-      throw err;
+      if (error instanceof AxiosError) {
+        const payload = error.response?.data as { error?: string; detail?: string; jobId?: string } | undefined;
+        const message = payload?.error || payload?.detail;
+        if (message) {
+          const requestError = new Error(message) as GenerationRequestError;
+          requestError.jobId = payload?.jobId;
+          throw requestError;
+        }
+      }
+      throw new Error("Generation service is temporarily unavailable. Please retry.");
     }
     throw error;
   }
+}
+
+export async function getGenerationJob(jobId: string): Promise<CreatePathResponse> {
+  const response = await api.get<CreatePathResponse>(`/path/generation-jobs/${jobId}`);
+  return response.data;
+}
+
+export async function retryGenerationJob(jobId: string): Promise<CreatePathResponse> {
+  const response = await api.post<CreatePathResponse>(`/path/generation-jobs/${jobId}/retry`);
+  return response.data;
+}
+
+export async function getFailedGenerationJobs(): Promise<CreatePathResponse[]> {
+  const response = await api.get<{ success: boolean; jobs: CreatePathResponse[] }>("/path/generation-jobs/failed");
+  return response.data.jobs ?? [];
+}
+
+export async function getRoadmapFeedback(roadmapId: number): Promise<RoadmapFeedback | null> {
+  const response = await api.get<{ success: boolean; feedback: RoadmapFeedback | null }>("/path/feedback", {
+    params: { roadmapId },
+  });
+  return response.data.feedback ?? null;
+}
+
+export async function saveRoadmapFeedback(
+  roadmapId: number,
+  payload: Omit<RoadmapFeedback, "id" | "roadmapId" | "completionPercent" | "createdAt" | "updatedAt">,
+): Promise<RoadmapFeedback> {
+  const response = await api.put<{ success: boolean; feedback: RoadmapFeedback }>("/path/feedback", {
+    roadmapId,
+    ...payload,
+  });
+  return response.data.feedback;
 }
 
 export async function getAllPaths(): Promise<Roadmap[]> {
@@ -209,7 +258,7 @@ export async function getAllPaths(): Promise<Roadmap[]> {
       return response.data.roadmaps;
     }
     return [];
-  } catch (err) {
+  } catch {
     return [];
   }
 }

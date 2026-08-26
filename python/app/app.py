@@ -7,7 +7,7 @@ from app.ml_models import ml_models
 from app.routes.enrich import enrich_router
 from app.routes.query import query_router
 from app.routes.quiz import quiz_router
-from app.routes.upload import upload_router
+from app.routes.worker import worker_router
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,13 +17,10 @@ load_dotenv()
 
 async def _load_ml_models() -> None:
     try:
-        from langchain_groq import ChatGroq
+        from openai import OpenAI
 
-        ml_models["llm"] = ChatGroq(
-            model="llama-3.3-70b-versatile",
-            temperature=0,
-            max_tokens=None,
-            timeout=None,
+        ml_models["llm"] = OpenAI(
+            timeout=float(os.getenv("OPENAI_TIMEOUT_SECONDS", "45")),
             max_retries=2,
         )
         # Keep heavy ranking models lazy-loaded on demand to avoid OOM on small instances.
@@ -31,7 +28,10 @@ async def _load_ml_models() -> None:
         ml_models["ready"] = True
         ml_models["error"] = None
     except Exception as exc:
-        ml_models["error"] = str(exc)
+        if isinstance(exc, ModuleNotFoundError) and exc.name == "openai":
+            ml_models["error"] = "OpenAI SDK is missing. Run: python -m pip install -r requirements.txt"
+        else:
+            ml_models["error"] = str(exc)
         ml_models["ready"] = False
 
 
@@ -50,14 +50,20 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        origin.strip()
+        for origin in os.getenv(
+            "CORS_ORIGINS", "http://127.0.0.1:5173,http://localhost:5173"
+        ).split(",")
+        if origin.strip()
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=True,
 )
 
 
-app.include_router(upload_router, prefix="/upload")
+app.include_router(worker_router, prefix="/worker")
 app.include_router(query_router, prefix="/query")
 app.include_router(quiz_router, prefix="/quiz")
 app.include_router(enrich_router, prefix="/enrich")

@@ -1,12 +1,20 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, ConfigDict, Field
 from app.rag.llm import generate_quiz_structured
 from app.ml_models import ml_models
-from groq import BadRequestError
+from app.internal_auth import require_internal_service
 import re
 import json
 
-quiz_router = APIRouter()
+quiz_router = APIRouter(dependencies=[Depends(require_internal_service)])
+
+
+def _is_openai_bad_request(error: Exception) -> bool:
+    try:
+        from openai import BadRequestError
+    except ImportError:
+        return False
+    return isinstance(error, BadRequestError)
 
 
 class QuizGenerateRequest(BaseModel):
@@ -20,14 +28,19 @@ class QuizGenerateRequest(BaseModel):
 
 
 class QuizQuestion(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     question: str = Field(..., min_length=1)
     options: list[str] = Field(..., min_length=4, max_length=4)
     answer: str = Field(..., pattern=r"^[A-D]$")
     explanation: str = Field(..., min_length=1)
     tier: int = Field(..., ge=1, le=4)
+    citations: list[str] = Field(..., min_length=1, max_length=3)
 
 
 class QuizResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     questions: list[QuizQuestion] = Field(..., min_length=1)
 
 
@@ -98,6 +111,11 @@ def _build_concept_context(raw_roadmap: str) -> str:
                 task_text = str(task).strip()
                 if task_text:
                     lines.append(f"Learning item: {task_text}")
+        citations = day.get("citations", [])
+        if isinstance(citations, list):
+            source_ids = [str(citation).strip() for citation in citations if str(citation).strip()]
+            if source_ids:
+                lines.append(f"Source IDs: {', '.join(source_ids)}")
 
     concept_text = "\n".join(lines).strip()
     return concept_text or cleaned
@@ -130,6 +148,7 @@ Rules:
 - Use exactly {payload.difficulty_tiers} difficulty tiers: 1..{payload.difficulty_tiers}.
 - Generate exactly {payload.questions_per_tier} questions per tier.
 - Include `tier` field for every question.
+- Include one or more source chunk IDs from the learning context in `citations`.
 """
 
 
@@ -149,7 +168,9 @@ async def generate_quiz_route(payload: QuizGenerateRequest):
 
     try:
         quiz = generate_quiz_structured(prompt, QuizResponse, llm=ml_models.get("llm"))
-    except BadRequestError:
+    except Exception as error:
+        if not _is_openai_bad_request(error):
+            raise
         # Retry with tighter context when provider rejects message length.
         reduced_context = _compact_roadmap_context(concept_context, max_chars=5000)
         prompt = _build_quiz_prompt(payload, reduced_context)

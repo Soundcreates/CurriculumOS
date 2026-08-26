@@ -5,7 +5,7 @@ CurriculumOS is a full-stack AI-powered learning dashboard. It allows users to g
 The project is structured as a modern multi-service architecture comprising:
 1. **Frontend**: A React 19 + Vite app styling a custom, premium editorial dark UI with Lenis smooth scrolling, GSAP motion transitions, and interactive Recharts analytics.
 2. **Backend API Gateway**: A Go HTTP server utilizing GORM and PostgreSQL to handle authentication (manual + OAuth), persistence of roadmaps, day/task progress, and quiz results.
-3. **Python RAG Microservice**: A FastAPI service powering the ML/LLM pipeline. It handles document chunking, ChromaDB vector storage, LangChain pipelines, YouTube transcript extraction (with Webshare rotating proxy support), and structured quiz/roadmap generation via the Groq API.
+3. **Python RAG Worker**: A FastAPI worker that processes durable generation jobs, indexes job-scoped source chunks, and creates structured roadmaps and quizzes through the OpenAI Responses API.
 
 ---
 
@@ -13,12 +13,13 @@ The project is structured as a modern multi-service architecture comprising:
 
 ```mermaid
 graph TD
-    Client[React Frontend] <--> |HTTP / Cookies| GoServer[Go Backend]
+    Client[React Frontend] <--> |HTTP / Cookies| GoServer[Go API]
     GoServer <--> |PostgreSQL / GORM| DB[(PostgreSQL)]
-    GoServer <--> |HTTP / JSON| FastAPI[Python FastAPI Service]
-    FastAPI <--> |Vector Indexing| Chroma[(ChromaDB)]
-    FastAPI <--> |Structured Generation| Groq[Groq API / LLM]
-    FastAPI <--> |Transcripts / Info| YouTube[YouTube API / Webshare Proxies]
+    GoServer --> |job ID| Queue[QStash]
+    Queue --> |authenticated job ID| FastAPI[Python RAG Worker]
+    FastAPI <--> |authenticated callbacks| GoServer
+    FastAPI <--> |job-scoped vectors| Chroma[(ChromaDB)]
+    FastAPI <--> |Structured Outputs| OpenAI[OpenAI Responses API]
 ```
 
 ## Features
@@ -57,7 +58,7 @@ graph TD
 ### RAG & ML Microservice (Python)
 - **FastAPI** (Web Framework)
 - **LangChain** (RAG Orchestration)
-- **Groq SDK** (Structured LLM Generation)
+- **OpenAI Python SDK** (Responses API structured generation)
 - **ChromaDB** (Vector Database)
 - **YouTube Transcript API** (Transcripts Extraction with proxy rotation)
 - **PyTube** (YouTube Playlist/Video metadata)
@@ -105,6 +106,11 @@ PORT=8080
 DATABASE_URL=postgres://postgres:password@localhost:5432/curriculumos?sslmode=disable
 JWT_SECRET=your-long-random-jwt-signing-key
 PYTHON_URL=http://localhost:8000
+WORKER_URL=http://localhost:8000
+QSTASH_TOKEN=your-qstash-token # omit only for local direct dispatch
+QSTASH_URL=https://qstash.upstash.io/v2/publish
+INTERNAL_SERVICE_TOKEN=replace-with-a-long-random-shared-secret
+MAX_UPLOAD_BYTES=10485760
 
 # OAuth Credentials
 GOOGLE_OAUTH_CLIENT_ID=your-google-client-id
@@ -124,11 +130,17 @@ CLIENT_URL=http://127.0.0.1:5173
 Create `python/app/.env` with:
 ```env
 PORT=8000
-GROQ_API_KEY=your-groq-api-key
+OPENAI_API_KEY=your-openai-api-key
+OPENAI_MODEL=gpt-5.6-luna
+OPENAI_TIMEOUT_SECONDS=45
 CHROMA_HOST=api.trychroma.com
 CHROMA_API_KEY=your-chroma-cloud-api-key
 CHROMA_TENANT=your-chroma-tenant-id
 CHROMA_DATABASE=CurriculumOS
+CHROMA_COLLECTION=curriculum_sources_v1
+GATEWAY_URL=http://localhost:8080
+INTERNAL_SERVICE_TOKEN=the-same-long-random-shared-secret
+CORS_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
 
 # Webshare Proxy settings (Optional, for YouTube Transcript retrieval)
 WEBSHARE_PROXY_USERNAME=your-webshare-username

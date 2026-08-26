@@ -1,8 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-enrich_router = APIRouter()
+from app.internal_auth import require_internal_service
+
+enrich_router = APIRouter(dependencies=[Depends(require_internal_service)])
 
 PLACEHOLDER_TOPICS = {"unknown title", "unknown", "untitled", "learning focus", ""}
 

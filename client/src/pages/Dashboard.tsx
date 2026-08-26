@@ -6,27 +6,77 @@ import Card from "../components/Card";
 import AddCourseModal from "../components/AddCourseModal";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { Plus } from "lucide-react";
-import { getAllPaths, getUserStats, type Roadmap, type UserStats } from "@/apis/pathApi";
+import { Loader2, Plus, RotateCcw } from "lucide-react";
+import {
+  getAllPaths,
+  getFailedGenerationJobs,
+  getGenerationJob,
+  getUserStats,
+  retryGenerationJob,
+  type Roadmap,
+  type UserStats,
+  type CreatePathResponse,
+} from "@/apis/pathApi";
 
 gsap.registerPlugin(ScrollTrigger);
+
+function truncateText(value: string, maxLength = 56) {
+  const text = value.trim().replace(/\s+/g, " ");
+  return text.length > maxLength ? `${text.slice(0, maxLength).trimEnd()}…` : text;
+}
 
 const Dashboard: React.FC = () => {
   const headerRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [paths, setPaths] = useState<Array<Roadmap>>([]);
   const [stats, setStats] = useState<UserStats | null>(null);
+  const [failedJobs, setFailedJobs] = useState<CreatePathResponse[]>([]);
+  const [retryingJobId, setRetryingJobId] = useState("");
+  const [retryError, setRetryError] = useState("");
   const navigate = useNavigate();
 
   const handleFetchPaths = async () => {
-    const [roadmaps, userStats] = await Promise.all([getAllPaths(), getUserStats()]);
-    setPaths(roadmaps as Array<Roadmap>);
-    setStats(userStats);
+    try {
+      const [roadmaps, userStats, failed] = await Promise.all([
+        getAllPaths(),
+        getUserStats(),
+        getFailedGenerationJobs().catch(() => []),
+      ]);
+      setPaths(roadmaps as Array<Roadmap>);
+      setStats(userStats);
+      setFailedJobs(failed);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRetryJob = async (jobId: string) => {
+    setRetryingJobId(jobId);
+    setRetryError("");
+    try {
+      await retryGenerationJob(jobId);
+      for (let attempt = 0; attempt < 75; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 2000));
+        const job = await getGenerationJob(jobId);
+        if (job.status === "succeeded") break;
+        if (job.status === "failed") throw new Error(job.errorMessage || "Generation failed again.");
+        if (attempt === 74) throw new Error("Generation is taking longer than expected.");
+      }
+      await handleFetchPaths();
+    } catch (error) {
+      setRetryError(error instanceof Error ? error.message : "Failed to retry generation.");
+    } finally {
+      setRetryingJobId("");
+    }
   };
  
   useEffect(() => {
-   handleFetchPaths();
+    const timer = window.setTimeout(() => {
+      void handleFetchPaths();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -98,11 +148,52 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
+          {failedJobs.length > 0 && (
+            <section className="mb-10 rounded-2xl border border-[#8c3b3b]/40 bg-[#3b1a1a]/30 p-6">
+              <p className="font-sans text-xs uppercase tracking-[0.32em] text-[#f1b7a8]">Needs attention</p>
+              <h2 className="mt-2 text-2xl font-serif text-white">Some roadmaps need a retry</h2>
+              <div className="mt-4 space-y-3">
+                {failedJobs.map((job) => (
+                  <div key={job.jobId} className="flex flex-col gap-3 rounded-xl border border-white/10 bg-black/20 p-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="font-sans text-sm text-white">{job.errorMessage || "Generation failed"}</p>
+                      <p className="mt-1 font-sans text-xs text-text-secondary">
+                        {truncateText(job.userGoal || "Roadmap request")}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRetryJob(job.jobId)}
+                      disabled={Boolean(retryingJobId)}
+                      className="flex items-center justify-center gap-2 rounded-full border border-[#f1d6a8]/40 px-4 py-2 font-sans text-xs uppercase tracking-[0.22em] text-[#f1d6a8] transition-colors hover:bg-[#f1d6a8]/10 disabled:opacity-50"
+                    >
+                      {retryingJobId === job.jobId ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
+                      {retryingJobId === job.jobId ? "Retrying…" : "Retry"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {retryError && <p className="mt-4 font-sans text-sm text-[#f1b7a8]">{retryError}</p>}
+            </section>
+          )}
+
           <div
             ref={gridRef}
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-20"
           >
-            {paths?.length === 0 ? (
+            {isLoading ? (
+              <div className="col-span-full min-h-[55vh] flex items-center justify-center">
+                <div className="w-full max-w-2xl flex flex-col items-center justify-center text-center py-16 px-6 border border-white/10 bg-white/[0.02] rounded-xl">
+                  <Loader2 size={28} className="mb-4 animate-spin text-text-secondary" aria-hidden="true" />
+                  <h3 className="text-2xl md:text-3xl font-serif text-white mb-3" aria-live="polite">
+                    Loading roadmaps...
+                  </h3>
+                  <p className="text-text-secondary max-w-xl">
+                    Gathering your learning paths.
+                  </p>
+                </div>
+              </div>
+            ) : paths.length === 0 ? (
               <div className="col-span-full min-h-[55vh] flex items-center justify-center">
                 <div className="w-full max-w-2xl flex flex-col items-center justify-center text-center py-16 px-6 border border-white/10 bg-white/[0.02] rounded-xl">
                   <h3 className="text-2xl md:text-3xl font-serif text-white mb-3">

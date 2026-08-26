@@ -1,7 +1,12 @@
 import React, { useRef, useEffect, useState } from "react";
 import gsap from "gsap";
 import { X, Upload, Youtube, FileText } from "lucide-react";
-import { createPath } from "../apis/pathApi";
+import {
+  createPath,
+  getGenerationJob,
+  retryGenerationJob,
+  type GenerationRequestError,
+} from "../apis/pathApi";
 
 interface AddCourseModalProps {
   onClose: () => void;
@@ -30,7 +35,9 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose, refreshData })
   const [filePreviews, setFilePreviews] = useState<FilePreview[]>([]);
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [generationStatus, setGenerationStatus] = useState("");
   const [submitError, setSubmitError] = useState("");
+  const [failedJobId, setFailedJobId] = useState("");
 
   useEffect(() => {
     const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
@@ -205,6 +212,44 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose, refreshData })
     setCurrentStep(3);
   };
 
+  const waitForGeneration = async (jobId: string) => {
+    for (let attempt = 0; attempt < 75; attempt += 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, 2000));
+      const job = await getGenerationJob(jobId);
+      if (job.status === "succeeded") {
+        setGenerationStatus("Roadmap ready.");
+        return;
+      }
+      if (job.status === "failed") {
+        const failure = new Error(job.errorMessage || "Roadmap generation failed. Please retry.") as GenerationRequestError;
+        failure.jobId = jobId;
+        throw failure;
+      }
+      setGenerationStatus(job.status === "running" ? "Reading your sources and building the roadmap…" : "Roadmap queued…");
+    }
+    const timeout = new Error("Roadmap generation is taking longer than expected. Check back shortly.") as GenerationRequestError;
+    timeout.jobId = jobId;
+    throw timeout;
+  };
+
+  const handleRetry = async () => {
+    if (!failedJobId) return;
+    setIsSubmitting(true);
+    setSubmitError("");
+    setGenerationStatus("Retrying roadmap generation…");
+    try {
+      await retryGenerationJob(failedJobId);
+      await waitForGeneration(failedJobId);
+      handleClose();
+      refreshData();
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Failed to retry roadmap generation.");
+    } finally {
+      setIsSubmitting(false);
+      setGenerationStatus("");
+    }
+  };
+
   const handleSubmit = async () => {
     if (!hasSourceInput()) {
       setSubmitError("Please add at least one source.");
@@ -247,12 +292,18 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose, refreshData })
 
     setIsSubmitting(true);
     setSubmitError("");
+    setFailedJobId("");
+    setGenerationStatus("Uploading your source…");
 
     try {
-      await createPath(payload);
+      const response = await createPath(payload);
+      const jobId = response.data.jobId;
+      await waitForGeneration(jobId);
       handleClose();
       refreshData();
     } catch (error) {
+      const requestError = error as GenerationRequestError;
+      setFailedJobId(requestError.jobId || "");
       if (error instanceof Error) {
         setSubmitError(error.message);
       } else {
@@ -260,6 +311,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose, refreshData })
       }
     } finally {
       setIsSubmitting(false);
+      setGenerationStatus("");
     }
   };
 
@@ -538,7 +590,24 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({ onClose, refreshData })
             )}
           </div>
           {submitError && (
-            <p className="text-sm text-red-400 mt-4">{submitError}</p>
+            <div className="mt-4 space-y-3">
+              <p className="text-sm text-red-400">{submitError}</p>
+              {failedJobId && (
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  disabled={isSubmitting}
+                  className="rounded-full border border-[#f1d6a8]/40 px-4 py-2 text-xs uppercase tracking-[0.24em] text-[#f1d6a8] transition-colors hover:bg-[#f1d6a8]/10 disabled:opacity-50"
+                >
+                  Retry failed generation
+                </button>
+              )}
+            </div>
+          )}
+          {generationStatus && (
+            <p className="mt-4 text-center text-sm text-text-secondary" role="status">
+              {generationStatus}
+            </p>
           )}
         </div>
 

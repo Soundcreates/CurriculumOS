@@ -11,6 +11,7 @@ import {
   Loader2,
   Play,
   Sparkles,
+  Star,
 } from "lucide-react";
 import Layout from "../components/Layout";
 import Navigation from "../components/Navigation";
@@ -19,6 +20,8 @@ import {
   fetchDayResources,
   generateQuiz,
   getAllPaths,
+  getRoadmapFeedback,
+  saveRoadmapFeedback,
   updateDayProgress,
   updateTaskProgress,
   type DayProgressEntry,
@@ -140,7 +143,7 @@ function parseRoadmapContent(content: string): DayPlan[] {
   const fromMalformed = parseMalformedDayBlocks(content);
   if (fromMalformed.length > 0) return fromMalformed;
   const dayRegex =
-    /(?:^|\n)\s*(?:[#*\- ]*)Day\s*(\d+)\s*[:\-]?\s*([\s\S]*?)(?=\n\s*(?:[#*\- ]*)Day\s*\d+\s*[:\-]?|$)/gi;
+    /(?:^|\n)\s*(?:[#* -]*)Day\s*(\d+)\s*[:-]?\s*([\s\S]*?)(?=\n\s*(?:[#* -]*)Day\s*\d+\s*[:-]?|$)/gi;
   const plans: DayPlan[] = [];
   let match: RegExpExecArray | null;
   while ((match = dayRegex.exec(content)) !== null) {
@@ -267,6 +270,32 @@ const TaskCheckbox: React.FC<{
   </button>
 );
 
+const RatingSelector: React.FC<{
+  label: string;
+  value: number | null;
+  onChange: (value: number) => void;
+}> = ({ label, value, onChange }) => (
+  <div>
+    <div className="flex items-center justify-between">
+      <p className="font-sans text-sm text-[#e6dece]">{label}</p>
+      <span className="font-sans text-xs text-text-secondary">{value ? `${value}/5` : "Choose a rating"}</span>
+    </div>
+    <div className="mt-2 flex gap-1">
+      {[1, 2, 3, 4, 5].map((rating) => (
+        <button
+          key={rating}
+          type="button"
+          aria-label={`${rating} out of 5`}
+          onClick={() => onChange(rating)}
+          className="rounded-md p-1 transition-colors hover:bg-white/10"
+        >
+          <Star size={18} className={value !== null && rating <= value ? "text-[#f1d6a8]" : "text-white/30"} fill={value !== null && rating <= value ? "currentColor" : "none"} />
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
 const ResourceLink: React.FC<{ resource: ResourceItem }> = ({ resource }) => (
   <a
     href={resource.url}
@@ -320,6 +349,12 @@ const SpecificPathView: React.FC = () => {
   const [quizQuestions, setQuizQuestions] = useState<QuizQuestionView[]>([]);
   const [difficultyTiers, setDifficultyTiers] = useState(2);
   const [questionsPerTier, setQuestionsPerTier] = useState(6);
+  const [citationRating, setCitationRating] = useState<number | null>(null);
+  const [taskUsefulnessRating, setTaskUsefulnessRating] = useState<number | null>(null);
+  const [completionStatus, setCompletionStatus] = useState<"not_started" | "in_progress" | "completed" | "stopped">("in_progress");
+  const [feedbackComment, setFeedbackComment] = useState("");
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [isSavingFeedback, setIsSavingFeedback] = useState(false);
 
   useEffect(() => {
     const fetchPath = async () => {
@@ -329,6 +364,15 @@ const SpecificPathView: React.FC = () => {
       setPath(selected);
       setCompletionMap(parseDayProgress(selected?.dayProgress));
       setTaskMap(parseTaskProgressJson(selected?.taskProgress));
+      if (selected) {
+        const savedFeedback = await getRoadmapFeedback(selected.id).catch(() => null);
+        if (savedFeedback) {
+          setCitationRating(savedFeedback.citationRating);
+          setTaskUsefulnessRating(savedFeedback.taskUsefulnessRating);
+          setCompletionStatus(savedFeedback.completionStatus);
+          setFeedbackComment(savedFeedback.comment);
+        }
+      }
       setIsLoading(false);
       if (!selected) setErrorMessage("Path not found. It may have been removed.");
     };
@@ -454,6 +498,25 @@ const SpecificPathView: React.FC = () => {
       setQuizError("Failed to generate quiz. Please try again.");
     } finally {
       setIsGeneratingQuiz(false);
+    }
+  };
+
+  const handleSaveFeedback = async () => {
+    if (!path || citationRating === null || taskUsefulnessRating === null) return;
+    setIsSavingFeedback(true);
+    setFeedbackMessage("");
+    try {
+      const saved = await saveRoadmapFeedback(path.id, {
+        citationRating,
+        taskUsefulnessRating,
+        completionStatus,
+        comment: feedbackComment,
+      });
+      setFeedbackMessage(`Saved — your roadmap is ${saved.completionPercent}% complete.`);
+    } catch {
+      setFeedbackMessage("Could not save feedback. Please try again.");
+    } finally {
+      setIsSavingFeedback(false);
     }
   };
 
@@ -709,6 +772,54 @@ const SpecificPathView: React.FC = () => {
                     </button>
                   </div>
                 </div>
+
+                {/* Feedback */}
+                <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+                  <p className="font-sans text-xs uppercase tracking-[0.32em] text-[#bba98d]">Help us improve</p>
+                  <h3 className="mt-2 text-2xl text-white">How is this roadmap working?</h3>
+                  <p className="mt-2 font-sans text-sm leading-6 text-text-secondary">
+                    Your feedback helps us improve source citations, task quality, and completion outcomes.
+                  </p>
+                  <div className="mt-5 space-y-5">
+                    <RatingSelector label="Citation accuracy" value={citationRating} onChange={setCitationRating} />
+                    <RatingSelector label="Task usefulness" value={taskUsefulnessRating} onChange={setTaskUsefulnessRating} />
+                    <label className="block">
+                      <span className="font-sans text-sm text-[#e6dece]">Roadmap status</span>
+                      <select
+                        value={completionStatus}
+                        onChange={(event) => setCompletionStatus(event.target.value as typeof completionStatus)}
+                        className="mt-2 w-full rounded-lg border border-white/15 bg-[#141414] px-3 py-2 font-sans text-sm text-white focus:border-white focus:outline-none"
+                      >
+                        <option value="not_started">Not started</option>
+                        <option value="in_progress">In progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="stopped">Stopped early</option>
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className="font-sans text-sm text-[#e6dece]">Optional note</span>
+                      <textarea
+                        value={feedbackComment}
+                        onChange={(event) => setFeedbackComment(event.target.value)}
+                        maxLength={2000}
+                        placeholder="What should we keep or change?"
+                        className="mt-2 min-h-24 w-full resize-y rounded-lg border border-white/15 bg-transparent px-3 py-2 font-sans text-sm text-white placeholder:text-white/30 focus:border-white focus:outline-none"
+                      />
+                    </label>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="font-sans text-xs text-text-secondary">Current progress: {progressPercent}%</p>
+                      <button
+                        type="button"
+                        onClick={handleSaveFeedback}
+                        disabled={isSavingFeedback || citationRating === null || taskUsefulnessRating === null}
+                        className="rounded-full bg-white px-4 py-2 font-sans text-xs uppercase tracking-[0.24em] text-black transition-colors hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {isSavingFeedback ? "Saving…" : "Save feedback"}
+                      </button>
+                    </div>
+                    {feedbackMessage && <p className="font-sans text-sm text-[#b9d9c1]">{feedbackMessage}</p>}
+                  </div>
+                </section>
               </div>
 
               {/* ── Right: Sticky sidebar ── */}

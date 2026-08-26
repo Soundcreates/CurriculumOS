@@ -3,13 +3,7 @@ import { BrowserRouter as Router,
   Route,
   useLocation,
 } from "react-router-dom";
-import Landing from "./pages/Landing";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
-import Dashboard from "./pages/Dashboard";
-import Profile from "./pages/Profile";
-import SpecificPathView from "./pages/SpecificPathView";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import Lenis from "lenis";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -19,6 +13,13 @@ import {Analytics} from "@vercel/analytics/react";
 
 
 gsap.registerPlugin(ScrollTrigger);
+
+const Landing = lazy(() => import("./pages/Landing"));
+const Login = lazy(() => import("./pages/Login"));
+const Signup = lazy(() => import("./pages/Signup"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Profile = lazy(() => import("./pages/Profile"));
+const SpecificPathView = lazy(() => import("./pages/SpecificPathView"));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -44,17 +45,16 @@ function SmoothScroll() {
 
     lenis.on("scroll", ScrollTrigger.update);
 
-    gsap.ticker.add((time) => {
+    const tick = (time: number) => {
       lenis.raf(time * 1000);
-    });
+    };
+    gsap.ticker.add(tick);
 
     gsap.ticker.lagSmoothing(0);
 
     return () => {
       lenis.destroy();
-      gsap.ticker.remove((time) => {
-        lenis.raf(time * 1000);
-      });
+      gsap.ticker.remove(tick);
     };
   }, []);
 
@@ -66,19 +66,21 @@ function App() {
     <Router>
       <ScrollToTop />
       <SmoothScroll />
-      <Routes>
-        <Route element={<PublicOnlyRoutes />}>
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-        </Route>
+      <Suspense fallback={<main className="min-h-screen bg-[#0f0f0f]" aria-busy="true" />}>
+        <Routes>
+          <Route element={<PublicOnlyRoutes />}>
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+          </Route>
 
-        <Route element={<ProtectedRoutes />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/path/:id" element={<SpecificPathView />} />
-        </Route>
-      </Routes>
+          <Route element={<ProtectedRoutes />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/path/:id" element={<SpecificPathView />} />
+          </Route>
+        </Routes>
+      </Suspense>
       <Analytics />
     </Router>
   );

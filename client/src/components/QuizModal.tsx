@@ -26,7 +26,7 @@ type QuizModalProps = {
 
 type QuizState = "settings" | "taking" | "results";
 
-export const checkAnswer = (question: QuizQuestion, userAnswer: string): boolean => {
+const checkAnswer = (question: QuizQuestion, userAnswer: string): boolean => {
   if (!userAnswer || !question || !question.answer) return false;
   
   const normUser = userAnswer.trim().toUpperCase();
@@ -170,7 +170,7 @@ const QuizModal: React.FC<QuizModalProps> = ({
       });
 
       setQuizState("results");
-    } catch (err) {
+    } catch {
       setQuizState("results");
     } finally {
       setIsSavingQuiz(false);
@@ -375,7 +375,7 @@ const QuizModal: React.FC<QuizModalProps> = ({
     </div>
   );
 
-  const content = useMemo(() => {
+  const content = (() => {
     if (isLoading && quizState === "settings") {
       return (
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 font-sans text-sm text-text-secondary">
@@ -405,7 +405,7 @@ const QuizModal: React.FC<QuizModalProps> = ({
     }
 
     return null;
-  }, [quizState, isLoading, errorMessage, difficultyTiers, questionsPerTier, questions, userAnswers, score]);
+  })();
 
   if (!isOpen) {
     return null;

@@ -18,5 +18,10 @@ func RegisterRoutes(handler *handlers.Handler) *http.ServeMux {
 	mainRouter.Handle("/api/", http.StripPrefix("/api", apiRouter))
 	RegisterAuthRoutes(apiRouter, handler)
 	RegisterPathRoutes(apiRouter, handler)
+	mainRouter.HandleFunc("/internal/generation-jobs/", handler.InternalGenerationJob)
+
+	// Also register directly on mainRouter so requests work even if /api prefix is missing
+	RegisterAuthRoutes(mainRouter, handler)
+	RegisterPathRoutes(mainRouter, handler)
 	return mainRouter
 }

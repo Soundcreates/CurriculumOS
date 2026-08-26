@@ -65,7 +65,7 @@ func (h *Handler) CreatePath(w http.ResponseWriter, r *http.Request) {
 		pythonReq.Header.Set("Content-Type", contentType)
 	}
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 60 * time.Second}
 
 	pythonRes, err := client.Do(pythonReq)
 	if err != nil {
@@ -418,8 +418,9 @@ func (h *Handler) GenerateQuiz(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pythonReq.Header.Set("Content-Type", "application/json")
+	pythonReq.Header.Set("Authorization", "Bearer "+h.cfg.INTERNAL_SERVICE_TOKEN)
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 45 * time.Second}
 	pythonRes, err := client.Do(pythonReq)
 	if err != nil {
 		services.WriteJSON(w, http.StatusBadGateway, map[string]string{
@@ -576,6 +577,7 @@ func (h *Handler) FetchResources(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	pythonReq.Header.Set("Content-Type", "application/json")
+	pythonReq.Header.Set("Authorization", "Bearer "+h.cfg.INTERNAL_SERVICE_TOKEN)
 
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(pythonReq)
@@ -797,7 +799,7 @@ func (h *Handler) GetStats(w http.ResponseWriter, r *http.Request) {
 
 	monthlyActivity := make([]monthEntry, 6)
 	for i := 0; i < 6; i++ {
-		t := now.AddDate(0, -(5-i), 0)
+		t := now.AddDate(0, -(5 - i), 0)
 		monthKey := t.Format("2006-01")
 		var created, completed int
 		for _, rm := range roadmaps {
@@ -858,12 +860,12 @@ func (h *Handler) SubmitQuiz(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload struct {
-		RoadmapID       uint                   `json:"roadmapId"`
-		Score           int                    `json:"score"`
-		TotalQuestions  int                    `json:"totalQuestions"`
-		CorrectAnswers  int                    `json:"correctAnswers"`
-		Questions       []map[string]any       `json:"questions"`
-		UserAnswers     map[string]string      `json:"userAnswers"`
+		RoadmapID      uint              `json:"roadmapId"`
+		Score          int               `json:"score"`
+		TotalQuestions int               `json:"totalQuestions"`
+		CorrectAnswers int               `json:"correctAnswers"`
+		Questions      []map[string]any  `json:"questions"`
+		UserAnswers    map[string]string `json:"userAnswers"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {

@@ -328,7 +328,7 @@ void main() {
         try {
           renderer.render({ scene: mesh });
           animationIdRef.current = requestAnimationFrame(loop);
-        } catch (error) {
+        } catch {
           return;
         }
       };
@@ -356,7 +356,8 @@ void main() {
             if (canvas && canvas.parentNode) {
               canvas.parentNode.removeChild(canvas);
             }
-          } catch (error) {
+          } catch {
+            // WebGL context cleanup is best-effort.
           }
         }
 

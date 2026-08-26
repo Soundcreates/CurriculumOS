@@ -8,7 +8,7 @@ interface CardProps {
 
 const Card: React.FC<CardProps> = ({ id, name, description }) => {
   return (
-    <div className="group p-8 border border-white/5 hover:border-accent/30 transition-colors duration-500 bg-white/[0.02]">
+    <div className="group p-8 border border-white/5 hover:border-accent/30 transition-colors duration-500 bg-bg-primary">
       <div className="font-sans text-xs text-accent tracking-widest mb-6 opacity-60 group-hover:opacity-100 transition-opacity">
         {id}
       </div>

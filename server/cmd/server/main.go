@@ -6,8 +6,10 @@ import (
 	"curriculumOs/db/models"
 	"curriculumOs/internal/handlers"
 	"curriculumOs/internal/routes"
+	"curriculumOs/internal/services"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/rs/cors"
 )
@@ -23,7 +25,9 @@ func main() {
 		panic(err)
 	}
 
-	db.AutoMigrate(models.User{}, models.Roadmap{}, models.QuizResult{})
+	if err := db.AutoMigrate(models.User{}, models.Roadmap{}, models.QuizResult{}, models.GenerationJob{}, models.RoadmapFeedback{}); err != nil {
+		panic(err)
+	}
 	handler := handlers.NewHandler(db, cfg)
 
 	mux := routes.RegisterRoutes(handler)
@@ -44,10 +48,17 @@ func main() {
 		AllowCredentials: true,
 	})
 
-	handler2 := corsHandler.Handler(mux)
+	handler2 := services.ObserveRequests(corsHandler.Handler(mux))
 	addr := fmt.Sprintf(":%s", cfg.PORT)
 
-	err = http.ListenAndServe(addr, handler2)
+	err = (&http.Server{
+		Addr:              addr,
+		Handler:           handler2,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      75 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}).ListenAndServe()
 	if err != nil {
 		panic(err)
 	}
