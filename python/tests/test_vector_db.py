@@ -1,5 +1,6 @@
+import os
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from langchain_core.documents import Document
 
@@ -35,6 +36,24 @@ class VectorDatabaseIngestionTests(unittest.TestCase):
         self.assertEqual(submitted, 100)
         self.assertEqual(collection.add_documents.call_count, 1)
 
+
+    def test_signature_memory_cap_is_respected_across_batches(self):
+        documents = [
+            Document(page_content=content, metadata={"job_id": "job-1"})
+            for content in ("alpha", "beta", "gamma", "alpha", "beta", "gamma")
+        ]
+        collection = MagicMock()
+        database = vector_db.__new__(vector_db)
+        database.collection = collection
+
+        with patch.dict(os.environ, {"RAG_DEDUP_MAX_SIGNATURES": "2"}):
+            database.add_documents(documents, batch_size=3)
+
+        submitted_batches = [
+            len(call.args[0])
+            for call in collection.add_documents.call_args_list
+        ]
+        self.assertEqual(submitted_batches, [3, 1])
 
 if __name__ == "__main__":
     unittest.main()
