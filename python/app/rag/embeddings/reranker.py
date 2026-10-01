@@ -19,14 +19,17 @@ def document_signature(document: Document) -> str:
     return sha1(normalized_content.encode("utf-8")).hexdigest()
 
 
-def deduplicate_documents(documents: list[Document]) -> list[Document]:
+def deduplicate_documents(
+    documents: list[Document],
+    seen_signatures: set[str] | None = None,
+) -> list[Document]:
     """
     Remove duplicate documents based on content similarity.
 
-    Uses SHA1 hashing of normalized content to detect duplicates.
-    Safe for low-memory environments (no ML models).
+    Uses SHA1 hashing of normalized content to detect duplicates. Callers can
+    pass a shared signature set to deduplicate a stream across bounded batches.
     """
-    seen_signatures: set[str] = set()
+    seen = seen_signatures if seen_signatures is not None else set()
     deduplicated: list[Document] = []
 
     for document in documents:
@@ -34,10 +37,10 @@ def deduplicate_documents(documents: list[Document]) -> list[Document]:
             continue
 
         signature = document_signature(document)
-        if signature in seen_signatures:
+        if signature in seen:
             continue
 
-        seen_signatures.add(signature)
+        seen.add(signature)
         deduplicated.append(document)
 
     return deduplicated
