@@ -5,7 +5,7 @@ from hashlib import sha1
 
 from langchain_core.documents import Document
 
-_WHITESPACE_RE = re.compile(r"\s+")
+_WHITESPACE_RE = re.compile(r"\\s+")
 
 
 def normalize_text(text: str) -> str:
@@ -13,23 +13,24 @@ def normalize_text(text: str) -> str:
     return _WHITESPACE_RE.sub(" ", text).strip().lower()
 
 
-def document_signature(document: Document) -> str:
-    """Generate a signature for a document based on its content."""
+def document_signature(document: Document) -> bytes:
+    """Generate a compact signature for a document's normalized content."""
     normalized_content = normalize_text(document.page_content)
-    return sha1(normalized_content.encode("utf-8")).hexdigest()
+    return sha1(normalized_content.encode("utf-8")).digest()
 
 
 def deduplicate_documents(
     documents: list[Document],
-    seen_signatures: set[str] | None = None,
+    seen_signatures: set[bytes] | None = None,
+    max_seen_signatures: int | None = None,
 ) -> list[Document]:
     """
-    Remove duplicate documents based on content similarity.
+    Remove duplicate documents by normalized content.
 
-    Uses SHA1 hashing of normalized content to detect duplicates. Callers can
-    pass a shared signature set to deduplicate a stream across bounded batches.
+    A shared signature set deduplicates across batches. Its optional cap bounds
+    extra memory; duplicates remain deduplicated within each individual batch.
     """
-    seen = seen_signatures if seen_signatures is not None else set()
+    batch_signatures: set[bytes] = set()
     deduplicated: list[Document] = []
 
     for document in documents:
@@ -37,10 +38,20 @@ def deduplicate_documents(
             continue
 
         signature = document_signature(document)
-        if signature in seen:
+        if signature in batch_signatures:
             continue
+        batch_signatures.add(signature)
 
-        seen.add(signature)
+        if seen_signatures is not None and signature in seen_signatures:
+            continue
+        if (
+            seen_signatures is not None
+            and (
+                max_seen_signatures is None
+                or len(seen_signatures) < max_seen_signatures
+            )
+        ):
+            seen_signatures.add(signature)
         deduplicated.append(document)
 
     return deduplicated
