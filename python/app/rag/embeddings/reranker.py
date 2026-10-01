@@ -5,7 +5,7 @@ from hashlib import sha1
 
 from langchain_core.documents import Document
 
-_WHITESPACE_RE = re.compile(r"\\s+")
+_WHITESPACE_RE = re.compile(r"\s+")
 
 
 def normalize_text(text: str) -> str:
