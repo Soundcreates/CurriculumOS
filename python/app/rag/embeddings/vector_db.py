@@ -20,11 +20,14 @@ class vector_db:
         )
 
     def add_documents(self, documents, batch_size=100):
-        # Deduplicate before batching so repeated chunks across batch boundaries
-        # do not trigger a second embedding/vector write.
-        unique_documents = deduplicate_documents(documents)
-        for i in range(0, len(unique_documents), batch_size):
-            batch = unique_documents[i : i + batch_size]
+        # Keep one content-signature set across batches without copying the
+        # complete document corpus into a second list.
+        seen_signatures: set[str] = set()
+        for i in range(0, len(documents), batch_size):
+            batch = deduplicate_documents(
+                documents[i : i + batch_size],
+                seen_signatures=seen_signatures,
+            )
 
             if not batch:
                 continue
