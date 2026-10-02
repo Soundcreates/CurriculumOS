@@ -20,8 +20,16 @@ class vector_db:
         )
 
     def add_documents(self, documents, batch_size=100):
+        # Keep one content-signature set across batches without copying the
+        # complete document corpus into a second list.
+        max_seen_signatures = int(os.getenv("RAG_DEDUP_MAX_SIGNATURES", "50000"))
+        seen_signatures: set[bytes] = set()
         for i in range(0, len(documents), batch_size):
-            batch = deduplicate_documents(documents[i : i + batch_size])
+            batch = deduplicate_documents(
+                documents[i : i + batch_size],
+                seen_signatures=seen_signatures,
+                max_seen_signatures=max_seen_signatures,
+            )
 
             if not batch:
                 continue
